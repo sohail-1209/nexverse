@@ -46,6 +46,13 @@ const prompt = ai.definePrompt({
   output: {schema: ChatWithImageOutputSchema},
   tools: [webSearchTool], // Make the search tool available
   prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way.
+You have access to a 'webSearchTool'. Use this tool PROACTIVELY whenever you need:
+- Current events or up-to-the-minute information (e.g., "latest news", "today's weather", "current stock prices").
+- Information about topics, products, or services that might have changed or emerged after your last training data.
+- Specific details that are typically found through web searches (e.g., specific URLs, detailed product specs, obscure facts).
+- Verification for any facts or figures if you are uncertain.
+
+When you use the webSearchTool, you MUST clearly state in your response that you are using information obtained from a web search and briefly cite the source or query if appropriate (e.g., "According to a web search for 'X', ...").
 
 User's query: {{{query}}}
 
@@ -61,8 +68,6 @@ The user has also provided the following text content from a PDF document. Use t
 --- PDF END ---
 {{/if}}
 
-If you need to find current information, information beyond your training data, or verify something (even if an image or PDF is provided), use the 'webSearchTool' to search the internet.
-Clearly state if you are using information from a web search in your response.
 Strive to answer all questions to the best of your ability, using available tools if necessary.
 If you cannot effectively process the provided image or PDF content in relation to the query, you can mention that, but otherwise, try to answer the query comprehensively.
 Provide a helpful, comprehensive, and unrestricted response.
