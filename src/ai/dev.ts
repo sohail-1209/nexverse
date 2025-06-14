@@ -4,4 +4,5 @@ config();
 
 import '@/ai/flows/generate-answer-summary.ts';
 import '@/ai/flows/improve-answer.ts';
-import '@/ai/flows/general-chat-flow.ts'; // Added new general chat flow
+import '@/ai/flows/general-chat-flow.ts';
+import '@/ai/flows/chat-with-image-flow.ts'; // Added new chat with image flow
