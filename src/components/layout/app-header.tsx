@@ -13,22 +13,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LogIn, LogOut, Search } from 'lucide-react'; // Removed unused icons for now, will be re-added by config
+import { LogIn, LogOut, Menu } from 'lucide-react'; 
 import { SiteLogo } from '@/components/common/site-logo';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import React from 'react';
 
 
-const NavLink = ({ href, children, icon }: { href: string; children: React.ReactNode; icon?: React.ReactNode }) => {
+const NavLink = ({ href, children, icon, onClick }: { href: string; children: React.ReactNode; icon?: React.ReactNode, onClick?: () => void }) => {
   const pathname = usePathname();
   const isActive = pathname === href;
   return (
-    <Link href={href} passHref>
-      <Button variant="ghost" className={cn("text-sm font-medium", isActive ? "text-primary hover:text-primary" : "text-muted-foreground hover:text-foreground")}>
+    <Link href={href} passHref legacyBehavior>
+      <a
+        onClick={onClick}
+        className={cn(
+          "flex items-center text-sm font-medium px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors",
+          isActive ? "text-primary bg-primary/10" : "text-muted-foreground",
+        )}
+      >
         {icon && <span className="mr-2 h-4 w-4">{icon}</span>}
         {children}
-      </Button>
+      </a>
     </Link>
   );
 };
@@ -37,102 +45,154 @@ const NavLink = ({ href, children, icon }: { href: string; children: React.React
 export default function AppHeader() {
   const { user, signOut, loading, isAdmin } = useAuth();
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const mainNavLinks = siteConfig.mainNav;
   const authenticatedNavLinks = siteConfig.authenticatedNav;
   const adminNavLinks = siteConfig.adminNav;
-  const profileNavLinks = siteConfig.profileNav || []; // Ensure profileNavLinks is an array
+  const profileNavLinks = siteConfig.profileNav || [];
 
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
   };
 
+  const commonNavLinks = (isMobile = false) => (
+    <>
+      {mainNavLinks.map(link => (
+        <NavLink key={`main-${link.href}`} href={link.href} icon={link.icon && <link.icon className="h-4 w-4" />} onClick={() => isMobile && setMobileMenuOpen(false)}>
+          {link.title}
+        </NavLink>
+      ))}
+      {user && authenticatedNavLinks.map(link => (
+        <NavLink key={`auth-${link.href}`} href={link.href} icon={link.icon && <link.icon className="h-4 w-4" />} onClick={() => isMobile && setMobileMenuOpen(false)}>
+          {link.title}
+        </NavLink>
+      ))}
+      {user && isAdmin && adminNavLinks.map(link => (
+         <NavLink key={`admin-${link.href}`} href={link.href} icon={link.icon && <link.icon className="h-4 w-4" />} onClick={() => isMobile && setMobileMenuOpen(false)}>
+          {link.title}
+        </NavLink>
+      ))}
+    </>
+  );
+  
+  const commonProfileLinks = (isMobile = false) => (
+     <>
+        {profileNavLinks.map((item) => (
+          <DropdownMenuItem key={item.href} asChild className={isMobile ? "px-3 py-2 text-base" : ""}>
+            <Link href={item.href} onClick={() => isMobile && setMobileMenuOpen(false)}>
+              {item.icon && <item.icon className="mr-2 h-4 w-4" />}
+              <span>{item.title}</span>
+            </Link>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator className={isMobile ? "my-2" : ""} />
+        <DropdownMenuItem onClick={() => { signOut(); if (isMobile) setMobileMenuOpen(false); }} className={isMobile ? "px-3 py-2 text-base" : ""}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
+        </DropdownMenuItem>
+    </>
+  );
+
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center space-x-2">
+        <Link href="/" className="flex items-center space-x-2" onClick={() => mobileMenuOpen && setMobileMenuOpen(false)}>
           <SiteLogo className="h-8 w-8 text-primary" />
           <span className="font-headline text-xl font-bold text-primary">NExVERSE</span>
         </Link>
 
-        <nav className="hidden md:flex items-center space-x-2 lg:space-x-4">
-          {mainNavLinks.map(link => (
-            <NavLink key={link.href} href={link.href} icon={link.icon && <link.icon className="h-4 w-4" />}>
-              {link.title}
-            </NavLink>
-          ))}
-          {user && authenticatedNavLinks.map(link => (
-            <NavLink key={link.href} href={link.href} icon={link.icon && <link.icon className="h-4 w-4" />}>
-              {link.title}
-            </NavLink>
-          ))}
-          {user && isAdmin && adminNavLinks.map(link => (
-             <NavLink key={link.href} href={link.href} icon={link.icon && <link.icon className="h-4 w-4" />}>
-              {link.title}
-            </NavLink>
-          ))}
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
+          {commonNavLinks()}
         </nav>
 
         <div className="flex items-center space-x-3">
           {loading ? (
             <div className="h-8 w-20 animate-pulse rounded-md bg-muted"></div>
           ) : user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} />
-                    <AvatarFallback>{getInitials(user.displayName || user.email)}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.displayName || user.email}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {profileNavLinks.map((item) => (
-                  <DropdownMenuItem key={item.href} asChild>
-                    <Link href={item.href}>
-                      {item.icon && <item.icon className="mr-2 h-4 w-4" />}
-                      <span>{item.title}</span>
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+             <div className="hidden md:block">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} />
+                        <AvatarFallback>{getInitials(user.displayName || user.email)}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.displayName || user.email}</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {commonProfileLinks()}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+             </div>
           ) : (
             <>
               {!pathname.startsWith('/auth') && (
-                <Button asChild variant="ghost" size="sm">
+                <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
                   <Link href="/auth/login">
                     <LogIn className="mr-2 h-4 w-4" /> Login
                   </Link>
                 </Button>
               )}
               {!pathname.startsWith('/auth/signup') && !pathname.startsWith('/auth/login') && (
-                 <Button asChild size="sm">
+                 <Button asChild size="sm" className="hidden md:inline-flex">
                   <Link href="/auth/signup">Sign Up</Link>
                 </Button>
               )}
             </>
           )}
-           {/* Mobile Menu Trigger - Placeholder */}
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Search className="h-5 w-5" /> {/* Or Menu icon */}
-            <span className="sr-only">Toggle menu</span>
-          </Button>
+          
+          {/* Mobile Menu Trigger */}
+          <div className="md:hidden">
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[280px] p-0 pt-10">
+                <nav className="flex flex-col space-y-2 px-4">
+                  {commonNavLinks(true)}
+                  
+                  {user && (
+                    <>
+                      <div className="my-2 border-t border-border/40"></div>
+                      <div className="px-1 py-1 text-sm font-medium text-muted-foreground">My Account</div>
+                      {commonProfileLinks(true).props.children.filter(Boolean).map((child: React.ReactElement, index: number) => (
+                        // DropdownMenuItem and Separator are not directly usable here as they rely on DropdownMenu context
+                        // We need to replicate their structure or use simple Links/Buttons
+                        React.cloneElement(child.type === DropdownMenuItem ? <div /> : child, { key: `mobile-profile-${index}`, ...child.props, 
+                          // Convert DropdownMenuItem to Link or Button like structure for Sheet
+                          className: `${child.props.className} w-full text-left justify-start flex items-center`
+                        })
+                      ))}
+                    </>
+                  )}
+
+                  {!user && !loading && (
+                     <>
+                      <div className="my-2 border-t border-border/40"></div>
+                       <NavLink href="/auth/login" icon={<LogIn />} onClick={() => setMobileMenuOpen(false)}>Login</NavLink>
+                       <NavLink href="/auth/signup" onClick={() => setMobileMenuOpen(false)}>Sign Up</NavLink>
+                     </>
+                  )}
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
       </div>
     </header>
