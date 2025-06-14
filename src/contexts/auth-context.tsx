@@ -27,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         // Fetch user role from Firestore
+        // ** Ensure Firestore database is created in your Firebase Console project for this to work **
         const userDocRef = doc(db, "users", firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
@@ -68,4 +69,3 @@ export function useAuth() {
   }
   return context;
 }
-
