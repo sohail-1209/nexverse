@@ -273,11 +273,9 @@ export default function AnswerDetailPage() {
               )}
               {(isOwner || isAdmin) && (
                 <>
-                  <Button variant="outline" size="icon" asChild disabled> {/* TODO: Create edit page */}
-                    <Link href={`/answers/edit/${answer.id}`}> 
-                      <Edit className="h-4 w-4" />
-                      <span className="sr-only">Edit</span>
-                    </Link>
+                  <Button variant="outline" size="icon" disabled title="Edit feature coming soon"> {/* TODO: Create edit page */}
+                    <Edit className="h-4 w-4" />
+                    <span className="sr-only">Edit</span>
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
