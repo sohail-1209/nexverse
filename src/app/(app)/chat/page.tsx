@@ -6,11 +6,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, MessageSquareIcon, User, Bot, Loader2, Paperclip, XCircle, FileText, Camera, ImageUp, AlertTriangle } from 'lucide-react'; // Added Camera, ImageUp, AlertTriangle
+import { Send, MessageSquareIcon, User, Bot, Loader2, Paperclip, XCircle, FileText, Camera, ImageUp, AlertTriangle, Mic, MicOff } from 'lucide-react'; // Added Mic, MicOff
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
 import { askGeneralQuestion, GeneralChatInput, GeneralChatOutput } from '@/ai/flows/general-chat-flow';
-import { askQuestionWithImage, ChatWithImageInput, ChatWithImageOutput } from '@/ai/flows/chat-with-image-flow'; // Added new flow
+import { askQuestionWithImage, ChatWithImageInput, ChatWithImageOutput } from '@/ai/flows/chat-with-image-flow';
 import { toast } from '@/hooks/use-toast';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -26,8 +26,7 @@ interface Message {
   sender: 'user' | 'ai';
   timestamp: Date;
   pdfFileName?: string;
-  imageFileName?: string; // For indicating an image was sent
-  // imageDataUri?: string; // Not for localStorage, but for temporary display if needed
+  imageFileName?: string;
 }
 
 interface AttachedPdf {
@@ -37,6 +36,13 @@ interface AttachedPdf {
 }
 
 const LOCAL_STORAGE_CHAT_KEY = 'nexverseChatMessages';
+
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
 
 export default function ChatPage() {
   const { user } = useAuth();
@@ -49,8 +55,13 @@ export default function ChatPage() {
   
   const [showCameraView, setShowCameraView] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null); // Stores data URI
-  const [isCapturing, setIsCapturing] = useState(false); // True when video feed is active
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+
+  const [isListening, setIsListening] = useState(false);
+  const [speechApiSupported, setSpeechApiSupported] = useState(true);
+  const [micPermission, setMicPermission] = useState<'prompt' | 'granted' | 'denied'>('prompt');
+  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -108,13 +119,75 @@ export default function ChatPage() {
   }, [messages]);
 
   useEffect(() => {
-    // Cleanup camera stream when component unmounts or camera view is closed
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
         streamRef.current = null;
       }
+      if (speechRecognitionRef.current && isListening) {
+        speechRecognitionRef.current.stop();
+      }
     };
+  }, [isListening]);
+
+  useEffect(() => {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      setSpeechApiSupported(false);
+      console.warn("Speech Recognition API not supported by this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.continuous = false; // Capture a single utterance
+    recognition.interimResults = true; // Get interim results for faster feedback (optional)
+    recognition.lang = 'en-US'; // Set language
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      // Update input with final transcript, or interim if you prefer live updates
+      setInput(prevInput => prevInput + finalTranscript); // Append or replace as needed
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error', event.error);
+      let errorMsg = 'An error occurred during speech recognition.';
+      if (event.error === 'no-speech') errorMsg = 'No speech detected. Please try again.';
+      if (event.error === 'audio-capture') errorMsg = 'Microphone problem. Please check your microphone.';
+      if (event.error === 'not-allowed') {
+        errorMsg = 'Microphone access denied. Please enable it in browser settings.';
+        setMicPermission('denied');
+      }
+      toast({ title: 'Speech Error', description: errorMsg, variant: 'destructive' });
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    speechRecognitionRef.current = recognition;
+
+    // Check initial permission status
+    navigator.permissions?.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
+      setMicPermission(permissionStatus.state);
+      permissionStatus.onchange = () => {
+        setMicPermission(permissionStatus.state);
+      };
+    });
+
   }, []);
   
 
@@ -122,8 +195,8 @@ export default function ChatPage() {
     const file = event.target.files?.[0];
     if (file && file.type === 'application/pdf') {
       setIsPdfProcessing(true);
-      setCapturedImage(null); // Clear any captured image if attaching PDF
-      setShowCameraView(false); // Close camera view if open
+      setCapturedImage(null); 
+      setShowCameraView(false); 
       setAttachedPdf({ name: file.name, textContent: null, file }); 
       try {
         const arrayBuffer = await file.arrayBuffer();
@@ -166,7 +239,7 @@ export default function ChatPage() {
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      streamRef.current = stream; // Store stream for later use/cleanup
+      streamRef.current = stream; 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
@@ -185,7 +258,7 @@ export default function ChatPage() {
   };
 
   const handleToggleCameraView = async () => {
-    if (showCameraView) { // If closing camera view
+    if (showCameraView) { 
       setShowCameraView(false);
       setIsCapturing(false);
       setCapturedImage(null);
@@ -194,12 +267,12 @@ export default function ChatPage() {
         streamRef.current = null;
       }
       if (videoRef.current) videoRef.current.srcObject = null;
-    } else { // If opening camera view
-      setAttachedPdf(null); // Clear any attached PDF
+    } else { 
+      setAttachedPdf(null); 
       const permissionGranted = await requestCameraPermission();
       if (permissionGranted) {
         setShowCameraView(true);
-        setIsCapturing(true); // Start in capturing mode
+        setIsCapturing(true); 
         setCapturedImage(null);
       }
     }
@@ -216,9 +289,8 @@ export default function ChatPage() {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUri = canvas.toDataURL('image/png');
         setCapturedImage(dataUri);
-        setIsCapturing(false); // Move to preview mode
+        setIsCapturing(false); 
 
-        // Stop camera stream after capture
         if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
@@ -230,12 +302,37 @@ export default function ChatPage() {
   
   const handleRemoveCapturedImage = () => {
     setCapturedImage(null);
-    // Optionally, re-enable camera capture mode or close camera view
-    // For now, it just removes the preview, user can re-open camera if needed.
-    // To re-enable capture immediately:
-    // requestCameraPermission().then(granted => {
-    //  if (granted) setIsCapturing(true); else setShowCameraView(false);
-    // });
+  };
+
+  const handleToggleListening = async () => {
+    if (!speechApiSupported) {
+      toast({ title: "Unsupported", description: "Voice input is not supported by your browser.", variant: "destructive" });
+      return;
+    }
+
+    if (isListening) {
+      speechRecognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      if (micPermission === 'denied') {
+        toast({ title: "Permission Denied", description: "Microphone access is denied. Please enable it in your browser settings.", variant: "destructive" });
+        return;
+      }
+      if (micPermission === 'prompt') {
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true }); // Request permission
+          setMicPermission('granted'); // If successful, update state
+          speechRecognitionRef.current?.start();
+        } catch (err) {
+          console.error("Mic permission error:", err);
+          setMicPermission('denied');
+          toast({ title: "Permission Denied", description: "Microphone access was not granted.", variant: "destructive" });
+          return;
+        }
+      } else if (micPermission === 'granted') {
+         speechRecognitionRef.current?.start();
+      }
+    }
   };
 
 
@@ -247,7 +344,7 @@ export default function ChatPage() {
     let imageFileNameForMessage: string | undefined = undefined;
 
     if (capturedImage && !userMessageText) {
-        userMessageText = "Image attached"; // Default text if only image
+        userMessageText = "Image attached"; 
     } else if (capturedImage && userMessageText) {
         userMessageText = `${userMessageText}`;
     }
@@ -260,7 +357,6 @@ export default function ChatPage() {
         imageFileNameForMessage = "captured_image.png";
     }
 
-
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       text: userMessageText,
@@ -271,7 +367,6 @@ export default function ChatPage() {
     };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    // PDF and Image are persisted until manually removed or camera view closed
     
     setIsLoading(true);
 
@@ -318,12 +413,14 @@ export default function ChatPage() {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
-      // Clear captured image after sending
       if (capturedImage) {
         setCapturedImage(null);
-        setShowCameraView(false); // Close camera view after sending image
+        setShowCameraView(false); 
         setIsCapturing(false);
       }
+      // Do not clear PDF here:
+      // removeAttachedPdf(); // <-- Removed this line
+      // if (fileInputRef.current) fileInputRef.current.value = ""; // <-- And this
     }
   };
 
@@ -335,7 +432,7 @@ export default function ChatPage() {
             <MessageSquareIcon className="h-8 w-8 text-primary" />
             <div>
               <CardTitle className="font-headline text-2xl">AI Chat Assistant</CardTitle>
-              <CardDescription>Ask questions, get summaries, or seek help. Attach PDFs or capture images for context.</CardDescription>
+              <CardDescription>Ask questions, get summaries, or seek help. Attach PDFs, capture images, or use voice input.</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -402,7 +499,6 @@ export default function ChatPage() {
           </ScrollArea>
         </CardContent>
         
-        {/* Camera View Area */}
         {showCameraView && hasCameraPermission === false && (
             <CardFooter className="border-t pt-4">
                 <Alert variant="destructive">
@@ -426,10 +522,9 @@ export default function ChatPage() {
             </CardFooter>
         )}
 
-        {/* Normal Input Area or Image Preview Input Area */}
-        {!isCapturing && ( // Hide normal input when actively capturing
+        {!isCapturing && ( 
             <CardFooter className="border-t pt-4 pb-4 flex-col items-start gap-2">
-            {attachedPdf && !showCameraView && ( // Show PDF only if camera is not active
+            {attachedPdf && !showCameraView && ( 
                 <div className="flex items-center justify-between w-full p-2 bg-muted rounded-md text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                     <FileText className="h-4 w-4 text-primary" />
@@ -441,7 +536,7 @@ export default function ChatPage() {
                 </Button>
                 </div>
             )}
-            {capturedImage && !isCapturing && ( // Show image preview if captured and not actively capturing
+            {capturedImage && !isCapturing && ( 
                 <div className="w-full p-2 bg-muted rounded-md text-sm">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 text-muted-foreground">
@@ -456,14 +551,14 @@ export default function ChatPage() {
                 </div>
             )}
 
-            {!showCameraView && ( /* Hide form if camera view itself is shown, but allow if only preview */
+            {!showCameraView && ( 
                 <form onSubmit={handleSendMessage} className="flex w-full items-center gap-3">
                     <Button
                         type="button"
                         variant="outline"
                         size="icon"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={isLoading || isPdfProcessing || showCameraView}
+                        disabled={isLoading || isPdfProcessing || showCameraView || isListening}
                         title="Attach PDF"
                     >
                     <Paperclip className="h-5 w-5" />
@@ -475,27 +570,38 @@ export default function ChatPage() {
                         onChange={handleFileChange}
                         accept=".pdf"
                         className="hidden"
-                        disabled={isLoading || isPdfProcessing || showCameraView}
+                        disabled={isLoading || isPdfProcessing || showCameraView || isListening}
                     />
                     <Button
                         type="button"
                         variant="outline"
                         size="icon"
                         onClick={handleToggleCameraView}
-                        disabled={isLoading || isPdfProcessing}
+                        disabled={isLoading || isPdfProcessing || isListening}
                         title={showCameraView ? "Close Camera" : "Open Camera"}
                     >
                     <Camera className="h-5 w-5" />
                     <span className="sr-only">{showCameraView ? "Close Camera" : "Open Camera"}</span>
                     </Button>
+                     <Button
+                        type="button"
+                        variant={isListening ? "destructive" : "outline"}
+                        size="icon"
+                        onClick={handleToggleListening}
+                        disabled={isLoading || isPdfProcessing || showCameraView || !speechApiSupported}
+                        title={isListening ? "Stop Listening" : "Start Voice Input"}
+                    >
+                        {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                        <span className="sr-only">{isListening ? "Stop Listening" : "Start Voice Input"}</span>
+                    </Button>
                     <Input
-                    type="text"
-                    placeholder="Type your message..."
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    disabled={isLoading || isPdfProcessing || (showCameraView && isCapturing)}
-                    className="flex-grow"
-                    autoComplete="off"
+                        type="text"
+                        placeholder={isListening ? "Listening..." : "Type your message..."}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        disabled={isLoading || isPdfProcessing || (showCameraView && isCapturing)}
+                        className="flex-grow"
+                        autoComplete="off"
                     />
                     <Button type="submit" size="icon" disabled={isLoading || isPdfProcessing || (showCameraView && isCapturing) || (!input.trim() && !attachedPdf && !capturedImage)}>
                     {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
@@ -503,7 +609,7 @@ export default function ChatPage() {
                     </Button>
                 </form>
             )}
-            {showCameraView && capturedImage && !isCapturing && ( /* Special form for when image is previewed */
+            {showCameraView && capturedImage && !isCapturing && ( 
                  <form onSubmit={handleSendMessage} className="flex w-full items-center gap-3 mt-2">
                     <Input
                         type="text"
@@ -527,3 +633,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
