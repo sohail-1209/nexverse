@@ -113,14 +113,14 @@ export default function ChatPage() {
     };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    // Do not clear attachedPdf here, it's part of the current message context
-    // It will be cleared *after* the AI responds or if explicitly removed by the user for the *next* message.
+    // The attachedPdf state is NO LONGER cleared here automatically.
+    // It will persist until the user manually clicks the 'X' button.
     
     setIsLoading(true);
 
     try {
       const aiInput: GeneralChatInput = { 
-        query: userMessage.text,
+        query: userMessage.text, // Use the actual text from userMessage which might include PDF context
         pdfTextContent: attachedPdf?.textContent || undefined,
       };
       const aiResponseData: GeneralChatOutput = await askGeneralQuestion(aiInput);
@@ -149,15 +149,14 @@ export default function ChatPage() {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
-      setAttachedPdf(null); // Clear PDF after message is processed and AI responds
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Clear the file input
-      }
+      // The fileInputRef.current.value is NO LONGER reset here automatically.
+      // This allows the same PDF to be "sent" with multiple messages if desired,
+      // until manually cleared.
     }
   };
 
   return (
-    <div className="flex flex-col h-full"> {/* Changed height calculation */}
+    <div className="flex flex-col h-full">
       <Card className="flex-grow flex flex-col shadow-xl">
         <CardHeader className="border-b">
           <div className="flex items-center gap-3">
