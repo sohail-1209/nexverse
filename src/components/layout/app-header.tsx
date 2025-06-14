@@ -26,17 +26,16 @@ const NavLink = ({ href, children, icon, onClick }: { href: string; children: Re
   const pathname = usePathname();
   const isActive = pathname === href;
   return (
-    <Link href={href} passHref legacyBehavior>
-      <a
-        onClick={onClick}
-        className={cn(
-          "flex items-center text-sm font-medium px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors",
-          isActive ? "text-primary bg-primary/10" : "text-muted-foreground",
-        )}
-      >
-        {icon && <span className="mr-2 h-4 w-4">{icon}</span>}
-        {children}
-      </a>
+    <Link 
+      href={href}
+      onClick={onClick}
+      className={cn(
+        "flex items-center text-sm font-medium px-3 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors",
+        isActive ? "text-primary bg-primary/10" : "text-muted-foreground",
+      )}
+    >
+      {icon && <span className="mr-2 h-4 w-4">{icon}</span>}
+      {children}
     </Link>
   );
 };
@@ -77,18 +76,18 @@ export default function AppHeader() {
     </>
   );
   
-  const commonProfileLinks = (isMobile = false) => (
+  const commonProfileLinks = (isMobile = false, closeMenu?: () => void) => (
      <>
         {profileNavLinks.map((item) => (
           <DropdownMenuItem key={item.href} asChild className={isMobile ? "px-3 py-2 text-base" : ""}>
-            <Link href={item.href} onClick={() => isMobile && setMobileMenuOpen(false)}>
+            <Link href={item.href} onClick={() => { if (isMobile && closeMenu) closeMenu(); }}>
               {item.icon && <item.icon className="mr-2 h-4 w-4" />}
               <span>{item.title}</span>
             </Link>
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator className={isMobile ? "my-2" : ""} />
-        <DropdownMenuItem onClick={() => { signOut(); if (isMobile) setMobileMenuOpen(false); }} className={isMobile ? "px-3 py-2 text-base" : ""}>
+        <DropdownMenuItem onClick={() => { signOut(); if (isMobile && closeMenu) closeMenu(); }} className={isMobile ? "px-3 py-2 text-base" : ""}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>
@@ -133,7 +132,7 @@ export default function AppHeader() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {commonProfileLinks()}
+                    {commonProfileLinks(false)}
                   </DropdownMenuContent>
                 </DropdownMenu>
              </div>
@@ -171,21 +170,37 @@ export default function AppHeader() {
                     <>
                       <div className="my-2 border-t border-border/40"></div>
                       <div className="px-1 py-1 text-sm font-medium text-muted-foreground">My Account</div>
-                      {commonProfileLinks(true).props.children.filter(Boolean).map((child: React.ReactElement, index: number) => (
-                        // DropdownMenuItem and Separator are not directly usable here as they rely on DropdownMenu context
-                        // We need to replicate their structure or use simple Links/Buttons
-                        React.cloneElement(child.type === DropdownMenuItem ? <div /> : child, { key: `mobile-profile-${index}`, ...child.props, 
-                          // Convert DropdownMenuItem to Link or Button like structure for Sheet
-                          className: `${child.props.className} w-full text-left justify-start flex items-center`
-                        })
+                      {/* 
+                        Replicating DropdownMenuItem structure for direct use in Sheet.
+                        commonProfileLinks returns an array of DropdownMenuItem components.
+                        We can iterate over them and render Link/Button components.
+                      */}
+                      {profileNavLinks.map((item) => (
+                        <Link
+                          key={`mobile-profile-${item.href}`}
+                          href={item.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center px-3 py-2 text-base rounded-md hover:bg-accent hover:text-accent-foreground"
+                        >
+                          {item.icon && <item.icon className="mr-2 h-4 w-4" />}
+                          <span>{item.title}</span>
+                        </Link>
                       ))}
+                      <div className="my-1 border-t border-border/40 -mx-4"></div>
+                      <button
+                        onClick={() => { signOut(); setMobileMenuOpen(false); }}
+                        className="flex items-center w-full px-3 py-2 text-base text-left rounded-md hover:bg-accent hover:text-accent-foreground"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Log out</span>
+                      </button>
                     </>
                   )}
 
                   {!user && !loading && (
                      <>
                       <div className="my-2 border-t border-border/40"></div>
-                       <NavLink href="/auth/login" icon={<LogIn />} onClick={() => setMobileMenuOpen(false)}>Login</NavLink>
+                       <NavLink href="/auth/login" icon={<LogIn className="h-4 w-4"/>} onClick={() => setMobileMenuOpen(false)}>Login</NavLink>
                        <NavLink href="/auth/signup" onClick={() => setMobileMenuOpen(false)}>Sign Up</NavLink>
                      </>
                   )}
