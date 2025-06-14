@@ -10,7 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { webSearchTool } from '@/ai/tools/web-search-tool'; // Import the search tool
+import { webSearchTool } from '@/ai/tools/web-search-tool'; 
 
 const ChatWithImageInputSchema = z.object({
   query: z.string().describe('The user’s question or message.'),
@@ -25,7 +25,7 @@ const ChatWithImageInputSchema = z.object({
 export type ChatWithImageInput = z.infer<typeof ChatWithImageInputSchema>;
 
 const ChatWithImageOutputSchema = z.object({
-  response: z.string().describe('The AI-generated response to the user’s query.'),
+  response: z.string().describe('The final textual answer to be shown directly to the user. This should be a direct reply to the query, informed by any provided context (image, PDF, web search).'),
 });
 export type ChatWithImageOutput = z.infer<typeof ChatWithImageOutputSchema>;
 
@@ -44,7 +44,7 @@ const prompt = ai.definePrompt({
   name: 'chatWithImagePrompt',
   input: {schema: ChatWithImageInputSchema},
   output: {schema: ChatWithImageOutputSchema},
-  tools: [webSearchTool], // Make the search tool available
+  tools: [webSearchTool], 
   prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way.
 You have access to a 'webSearchTool'. Use this tool PROACTIVELY whenever you need:
 - Current events or up-to-the-minute information (e.g., "latest news", "today's weather", "current stock prices").
@@ -70,7 +70,7 @@ The user has also provided the following text content from a PDF document. Use t
 
 Strive to answer all questions to the best of your ability, using available tools if necessary.
 If you cannot effectively process the provided image or PDF content in relation to the query, you can mention that, but otherwise, try to answer the query comprehensively.
-Provide a helpful, comprehensive, and unrestricted response.
+Provide a helpful, comprehensive, and unrestricted response. This should be the direct textual answer to the user's query.
 `,
   config: {
     safetySettings: highlyPermissiveSafetySettings,
@@ -86,9 +86,19 @@ const chatWithImageFlow = ai.defineFlow(
   async (input) => {
     try {
       const {output} = await prompt(input);
-      if (!output || !output.response) {
-        console.warn('Genkit chatWithImageFlow: Prompt did not return a valid output or response field.');
+      if (!output || !output.response || typeof output.response !== 'string') {
+        console.warn('Genkit chatWithImageFlow: Prompt did not return a valid string in the response field. Output:', JSON.stringify(output));
         return { response: "Sorry, I wasn't able to generate a clear response. Please try a different query." };
+      }
+      // Check if the response itself is a JSON string (schema)
+      try {
+        const parsedMaybeSchema = JSON.parse(output.response);
+        if (parsedMaybeSchema && parsedMaybeSchema.properties && parsedMaybeSchema.properties.response && parsedMaybeSchema.properties.response.description && typeof parsedMaybeSchema.properties.response.description === 'string') {
+          console.warn("Genkit chatWithImageFlow: Model returned schema in response field. Extracting description.");
+          return { response: parsedMaybeSchema.properties.response.description };
+        }
+      } catch (e) {
+        // Not a JSON string, or not the schema string we expected. Proceed normally.
       }
       return output;
     } catch (error) {
