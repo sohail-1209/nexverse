@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
@@ -15,6 +16,11 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Added measurementId
 };
+
+// Log the authDomain to help debug authorization issues
+if (typeof window !== 'undefined') {
+  console.log('Firebase Auth Domain being used by the app:', firebaseConfig.authDomain);
+}
 
 let app: FirebaseApp;
 let analytics: Analytics | undefined;
