@@ -1,5 +1,5 @@
 
-import { GraduationCap } from 'lucide-react';
+import { Atom } from 'lucide-react'; // Changed from GraduationCap to Atom
 import { cn } from '@/lib/utils';
 
 interface SiteLogoProps {
@@ -19,9 +19,9 @@ export function SiteLogo({ size = 32, className, iconClassName }: SiteLogoProps)
       )}
       style={{ width: size, height: size }}
     >
-      <GraduationCap
+      <Atom // Changed from GraduationCap to Atom
         size={iconSize}
-        className={cn("stroke-[1.5]", iconClassName)}
+        className={cn("stroke-[1.5]", iconClassName)} // Ensure stroke width is appropriate
       />
     </div>
   );
