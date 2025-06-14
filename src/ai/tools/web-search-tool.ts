@@ -1,5 +1,4 @@
 
-'use server';
 /**
  * @fileOverview A simulated web search tool for the AI assistant.
  *
