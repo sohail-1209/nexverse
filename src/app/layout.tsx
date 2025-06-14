@@ -28,17 +28,14 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        
         {/* PWA Tags */}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#3F51B5" /> {/* Primary color from style guidelines */}
-        
         {/* Apple PWA Tags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="NExVERSE" />
         <link rel="apple-touch-icon" href="https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcS9spLSZsqR6lnssbwBPgPEyc6A7YvHjcoyB05hFmApXolmKKd3"/>
-
       </head>
       <body className={cn("min-h-screen bg-background font-body antialiased flex flex-col")}>
         <ThemeProvider
