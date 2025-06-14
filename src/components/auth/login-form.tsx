@@ -51,12 +51,9 @@ export function LoginForm() {
     } catch (error: any) {
       const knownAuthErrorCodes = ['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential'];
       if (error && typeof error.code === 'string' && knownAuthErrorCodes.includes(error.code)) {
-        // These are expected errors due to invalid user input.
-        // Log them with console.info to potentially avoid the Next.js error overlay for handled errors.
         console.info(`Login attempt failed with code: ${error.code}`);
         toast({ title: 'Login Failed', description: 'Invalid email or password. Please try again.', variant: 'destructive' });
       } else {
-        // This is an unexpected error.
         console.error('Login failed with an unexpected error:', error);
         toast({ title: 'Login Failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
       }
@@ -71,21 +68,20 @@ export function LoginForm() {
     try {
       // For OAuth providers like Google Sign-In, ensure your Firebase project's
       // "Authorized domains" list in the Firebase Console (Authentication > Sign-in method)
-      // includes BOTH:
+      // includes THE FOLLOWING TWO DOMAINS:
       // 1. Your app's main deployed domain (e.g., `[YOUR_PROJECT_ID].web.app` or your custom domain).
       // 2. The Firebase-specific OAuth redirect domain: `[YOUR_PROJECT_ID].firebaseapp.com`.
       //    For this project, `nexverse-2cc70.firebaseapp.com` is crucial.
       // Also, ensure `firebaseConfig.authDomain` in `src/lib/firebase.ts` (populated by secrets via environment variables)
-      // is correctly set to `nexverse-2cc70.firebaseapp.com` for the `signInWithPopup` to work as expected.
+      // is correctly set to `nexverse-2cc70.firebaseapp.com` for `signInWithPopup` to work as expected.
       await signInWithPopup(auth, provider);
       toast({ title: 'Login Successful', description: 'Welcome!' });
       router.push('/dashboard');
     } catch (error: any) {
-      // For Google Sign-In, typically display error.message as it can be more specific (e.g., popup closed or auth/unauthorized-domain)
       console.error('Google Sign-In failed:', error);
       let errorMessage = error.message || 'An unexpected error occurred.';
       if (error.code === 'auth/unauthorized-domain') {
-        errorMessage = "This app's domain, or the Firebase OAuth redirect domain, is not authorized. Please check Firebase console settings under Authentication > Sign-in method > Authorized domains. Ensure both your app's main URL AND '[YOUR_PROJECT_ID].firebaseapp.com' (e.g., nexverse-2cc70.firebaseapp.com) are listed.";
+        errorMessage = "This app's domain (e.g., nexverse-2cc70.web.app) OR the Firebase OAuth redirect domain (nexverse-2cc70.firebaseapp.com) is not authorized. Please check Firebase console settings under Authentication > Sign-in method > Authorized domains. Ensure BOTH domains are listed.";
       }
       toast({ title: 'Google Sign-In Failed', description: errorMessage, variant: 'destructive' });
     } finally {

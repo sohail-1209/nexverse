@@ -9,7 +9,7 @@ import { getStorage, FirebaseStorage, ref, uploadBytes, getDownloadURL, deleteOb
 // These environment variables are populated by App Hosting from Google Secret Manager secrets
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, // IMPORTANT: Ensure this domain and your app's actual deployed domain are in Firebase Console > Authentication > Sign-in method > Authorized domains. For Google Sign-In (OAuth), this specific authDomain should be [YOUR_PROJECT_ID].firebaseapp.com
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
@@ -25,20 +25,20 @@ if (typeof window === 'undefined') {
     console.warn('[Firebase Init] Server-side: CRITICAL - Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is MISSING or UNDEFINED in the environment. This will cause Firebase initialization to fail.');
   }
   if (!firebaseConfig.authDomain) {
-    console.warn('[Firebase Init] Server-side: Firebase Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) is MISSING or UNDEFINED. Also verify this domain is in your Firebase project\'s "Authorized domains" list for Authentication.');
+    // For OAuth providers like Google Sign-In, this specific authDomain should be [YOUR_PROJECT_ID].firebaseapp.com
+    // and must be in your Firebase project's "Authorized domains" list.
+    console.warn('[Firebase Init] Server-side: Firebase Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) is MISSING or UNDEFINED.');
   }
 } else {
   // Client-side specific logging for debugging Firebase config
   console.log('[NExVERSE Firebase Debug Client] Initializing Firebase with effective config:');
   console.log(`[NExVERSE Firebase Debug Client] Project ID: ${firebaseConfig.projectId}`);
-  console.log(`[NExVERSE Firebase Debug Client] Auth Domain: ${firebaseConfig.authDomain}`);
+  console.log(`[NExVERSE Firebase Debug Client] Auth Domain: ${firebaseConfig.authDomain}`); // CRITICAL FOR GOOGLE SIGN-IN
   if (!firebaseConfig.apiKey) {
     console.error('[NExVERSE Firebase Debug Client] CRITICAL: Firebase API Key is MISSING or UNDEFINED in the client-side config.');
-  } else {
-    // console.log(`[NExVERSE Firebase Debug Client] API Key: ${firebaseConfig.apiKey ? 'Present' : 'MISSING'}`); // Optionally log presence, not the key itself for security
   }
   if (!firebaseConfig.authDomain) {
-    console.error('[NExVERSE Firebase Debug Client] CRITICAL: Firebase Auth Domain is MISSING or UNDEFINED in the client-side config.');
+    console.error('[NExVERSE Firebase Debug Client] CRITICAL: Firebase Auth Domain is MISSING or UNDEFINED in the client-side config. This MUST be "[YOUR_PROJECT_ID].firebaseapp.com" for Google Sign-in and added to Authorized Domains in Firebase Console.');
   }
 }
 
@@ -85,10 +85,6 @@ if (!getApps().length) {
 // This is more of a safeguard; the catch block above should handle init failure.
 if (!app!) {
     console.error("[Firebase Init] CRITICAL: Firebase app object is not defined after initialization attempt. Cannot get Auth or Firestore instances.");
-    // For server-side, this would likely lead to a crash.
-    // For client-side, this would break any Firebase interaction.
-    // Throwing an error here if on server, or handling gracefully on client might be needed
-    // depending on how critical Firebase is to the initial render.
     if (typeof window === 'undefined') {
         throw new Error("Server-side Firebase app object is not defined. Firebase cannot be used.");
     }
