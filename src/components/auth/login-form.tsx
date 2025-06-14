@@ -69,13 +69,21 @@ export function LoginForm() {
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
+      // For OAuth providers like Google Sign-In, ensure your Firebase project's
+      // "Authorized domains" list in the Firebase Console (Authentication > Sign-in method)
+      // includes both your app's main domain AND the `[PROJECT_ID].firebaseapp.com` domain.
+      // Failure to include the latter can cause 'auth/unauthorized-domain' errors specifically for OAuth.
       await signInWithPopup(auth, provider);
       toast({ title: 'Login Successful', description: 'Welcome!' });
       router.push('/dashboard');
     } catch (error: any) {
-      // For Google Sign-In, typically display error.message as it can be more specific (e.g., popup closed)
+      // For Google Sign-In, typically display error.message as it can be more specific (e.g., popup closed or auth/unauthorized-domain)
       console.error('Google Sign-In failed:', error);
-      toast({ title: 'Google Sign-In Failed', description: error.message || 'An unexpected error occurred.', variant: 'destructive' });
+      let errorMessage = error.message || 'An unexpected error occurred.';
+      if (error.code === 'auth/unauthorized-domain') {
+        errorMessage = "This app's domain is not authorized for Google Sign-In. Please check Firebase console settings.";
+      }
+      toast({ title: 'Google Sign-In Failed', description: errorMessage, variant: 'destructive' });
     } finally {
       setIsGoogleLoading(false);
     }
