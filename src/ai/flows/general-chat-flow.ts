@@ -26,30 +26,18 @@ export async function askGeneralQuestion(input: GeneralChatInput): Promise<Gener
   return generalChatFlow(input);
 }
 
-const commonSafetySettings = [
-  {
-    category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-    threshold: 'BLOCK_ONLY_HIGH',
-  },
-  {
-    category: 'HARM_CATEGORY_HATE_SPEECH',
-    threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-  },
-  {
-    category: 'HARM_CATEGORY_HARASSMENT',
-    threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-  },
-  {
-    category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-    threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-  },
+const highlyPermissiveSafetySettings = [
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
 ];
 
 const prompt = ai.definePrompt({
   name: 'generalChatPrompt',
   input: {schema: GeneralChatInputSchema},
   output: {schema: GeneralChatOutputSchema},
-  prompt: `You are a helpful AI Assistant. Respond to the user's query in a comprehensive and informative way.
+  prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way.
 
 User's query: {{{query}}}
 
@@ -60,11 +48,10 @@ The user has also provided the following text content from a PDF document. Use t
 --- PDF END ---
 {{/if}}
 
-Provide a helpful and concise response.
-If the query is something you cannot assist with due to ethical or safety limitations, politely state that you cannot answer that specific type of question. However, aim to be as helpful as possible within safe boundaries.
+Provide a helpful and comprehensive response to the user's query.
 `,
   config: {
-    safetySettings: commonSafetySettings,
+    safetySettings: highlyPermissiveSafetySettings,
   },
 });
 
@@ -89,3 +76,4 @@ const generalChatFlow = ai.defineFlow(
     }
   }
 );
+
