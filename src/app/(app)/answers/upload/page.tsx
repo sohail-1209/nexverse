@@ -30,7 +30,8 @@ import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, UploadCloud } from 'lucide-react';
 // TODO: import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-// TODO: import { db } from '@/lib/firebase';
+// TODO: import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+// TODO: import { db, storage } from '@/lib/firebase';
 
 const answerSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }).max(150),
@@ -39,7 +40,7 @@ const answerSchema = z.object({
   type: z.string().min(1, { message: 'Please select an answer type/mark.' }),
   content: z.string().min(50, { message: 'Answer content must be at least 50 characters.' }),
   tags: z.string().optional().describe('Comma-separated tags'),
-  // file: typeof window === 'undefined' ? z.any().optional() : z.instanceof(FileList).optional().nullable(), // For file uploads
+  file: typeof window === 'undefined' ? z.any().optional() : z.instanceof(FileList).optional().nullable(),
 });
 
 type AnswerFormValues = z.infer<typeof answerSchema>;
@@ -71,6 +72,7 @@ export default function UploadAnswerPage() {
       type: '',
       content: '',
       tags: '',
+      file: null,
     },
   });
 
@@ -81,26 +83,42 @@ export default function UploadAnswerPage() {
     }
     setIsLoading(true);
     try {
-      // TODO: Implement Firebase Firestore submission logic
+      // let fileURL = null;
+      // if (values.file && values.file.length > 0) {
+      //   const fileToUpload = values.file[0];
+      //   const storageRef = ref(storage, `answers/${user.uid}/${Date.now()}_${fileToUpload.name}`);
+      //   await uploadBytes(storageRef, fileToUpload);
+      //   fileURL = await getDownloadURL(storageRef);
+      // }
+
       // const answerData = {
-      //   ...values,
+      //   title: values.title,
+      //   subjectId: values.subject, // Assuming 'subject' value from form is the ID
+      //   category: values.category,
+      //   type: values.type,
+      //   content: values.content,
       //   tags: values.tags?.split(',').map(tag => tag.trim()).filter(tag => tag) || [],
       //   userId: user.uid,
       //   authorName: user.displayName || user.email,
+      //   authorAvatar: user.photoURL || null,
       //   createdAt: serverTimestamp(),
-      //   isVerified: false, // Default to not verified
+      //   isVerified: false,
       //   views: 0,
       //   likes: 0,
-      //   // fileURL: if file uploaded, store its URL here
+      //   fileURL: fileURL, // Add the file URL here
       // };
       // const docRef = await addDoc(collection(db, 'answers'), answerData);
       
-      console.log('Form submitted:', values); // Placeholder
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
+      console.log('Form submitted:', values);
+      if (values.file && values.file.length > 0) {
+        console.log('File to upload:', values.file[0].name);
+        // TODO: Implement actual file upload to Firebase Storage here
+      }
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
       toast({ title: 'Answer Uploaded!', description: 'Your answer has been submitted successfully.' });
-      // router.push(`/answers/${docRef.id}`); // Redirect to the newly created answer
-      router.push('/dashboard'); // Or redirect to dashboard or subject page
+      // router.push(`/answers/${docRef.id}`);
+      router.push('/dashboard'); 
     } catch (error) {
       console.error('Upload failed:', error);
       toast({ title: 'Upload Failed', description: 'Could not submit your answer. Please try again.', variant: 'destructive' });
@@ -221,22 +239,25 @@ export default function UploadAnswerPage() {
               )}
             />
             
-            {/* TODO: Add File Upload Field if needed
             <FormField
               control={form.control}
               name="file"
-              render={({ field }) => (
+              render={({ field: { onChange, value, ...rest } }) => ( // Destructure field to handle file input
                 <FormItem>
                   <FormLabel>Attach File (Optional)</FormLabel>
                   <FormControl>
-                     <Input type="file" onChange={(e) => field.onChange(e.target.files)} />
+                     <Input 
+                        type="file" 
+                        accept=".pdf,.doc,.docx,.txt" // Specify accepted file types
+                        onChange={(e) => onChange(e.target.files)} 
+                        {...rest}
+                      />
                   </FormControl>
-                  <FormDescription>Upload diagrams, PDFs, or other relevant files.</FormDescription>
+                  <FormDescription>Upload diagrams, PDFs, Word documents, or text files (max 5MB).</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            */}
 
             <FormField
               control={form.control}

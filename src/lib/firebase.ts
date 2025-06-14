@@ -2,8 +2,8 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
-import { getAnalytics, Analytics } from 'firebase/analytics'; // Added getAnalytics
-// import { getStorage, FirebaseStorage } from 'firebase/storage'; // If file uploads are needed
+import { getAnalytics, Analytics } from 'firebase/analytics';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
 // IMPORTANT: These should be set in your .env file
@@ -14,7 +14,7 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID, // Added measurementId
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Log the authDomain to help debug authorization issues
@@ -24,6 +24,7 @@ if (typeof window !== 'undefined') {
 
 let app: FirebaseApp;
 let analytics: Analytics | undefined;
+let storage: FirebaseStorage;
 
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
@@ -31,6 +32,7 @@ if (!getApps().length) {
     // Initialize Analytics only on the client side
     analytics = getAnalytics(app);
   }
+  storage = getStorage(app);
 } else {
   app = getApps()[0];
   if (typeof window !== 'undefined') {
@@ -41,10 +43,10 @@ if (!getApps().length) {
       console.error("Failed to initialize Analytics:", e);
     }
   }
+  storage = getStorage(app); // Ensure storage is initialized if app already exists
 }
 
 const auth: Auth = getAuth(app);
 const db: Firestore = getFirestore(app);
-// const storage: FirebaseStorage = getStorage(app); // If file uploads are needed
 
-export { app, auth, db, analytics /*, storage */ };
+export { app, auth, db, analytics, storage };
