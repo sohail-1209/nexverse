@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/contexts/auth-context';
@@ -6,6 +7,7 @@ import AppFooter from '@/components/layout/app-footer';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from 'next-themes';
+import { GlobalAuthRedirect } from '@/components/layout/global-auth-redirect'; // Import the new component
 
 export const metadata: Metadata = {
   title: 'NExVERSE - Your Exam Companion',
@@ -35,7 +37,7 @@ export default function RootLayout({
           <AuthProvider>
             <AppHeader />
             <main className="flex-grow container mx-auto px-4 py-8">
-              {children}
+              <GlobalAuthRedirect>{children}</GlobalAuthRedirect> {/* Wrap children with the redirect logic */}
             </main>
             <AppFooter />
             <Toaster />
