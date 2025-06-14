@@ -139,7 +139,7 @@ export default function AppHeader() {
       <div className="container flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center space-x-2" onClick={() => mobileMenuOpen && setMobileMenuOpen(false)}>
           <SiteLogo size={36} />
-          <span className="font-headline text-xl font-bold text-primary">NExVERSE</span>
+          <span className="font-michroma text-xl font-bold text-primary">NExVERSE</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -203,7 +203,7 @@ export default function AppHeader() {
               </SheetTrigger>
               <SheetContent side="right" className="w-[280px] p-0 flex flex-col">
                 <SheetHeader className="p-4 pb-0">
-                  <SheetTitle className="text-left text-lg font-headline text-primary">Menu</SheetTitle>
+                  <SheetTitle className="text-left text-lg font-michroma text-primary">Menu</SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col space-y-1 px-4 flex-grow mt-4">
                   {renderNavLinks(true)}

@@ -43,6 +43,11 @@ body {
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 220 20% 88%;
     --sidebar-ring: 200 80% 60%;
+
+    /* Font variables for next/font */
+    /* --font-inter: defined by next/font */
+    /* --font-poppins: defined by next/font */
+    /* --font-michroma: defined by next/font */
   }
 
   .dark {
@@ -88,7 +93,15 @@ body {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  /* Specific application of Poppins for headlines if desired project-wide */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline;
+  }
+  /* Specific application of Michroma for brand name if desired project-wide */
+  .font-brandname { /* Or .font-michroma directly if preferred */
+    @apply font-michroma;
   }
 }
