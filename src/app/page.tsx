@@ -30,11 +30,12 @@ export default function HomePage() {
               </div>
             </div>
             <Image
-              src="https://img.freepik.com/premium-photo/this-cloud-storage-icon-features-cloud-with-download-arrow-indicating-that-files-can-be-downloaded-generated-by-ai_399089-7161.jpg"
-              width="600"
-              height="400"
-              alt="Cloud Storage Icon"
-              className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last lg:aspect-square shadow-2xl"
+              src="https://placehold.co/500x500.png"
+              data-ai-hint="abstract circle"
+              width="500"
+              height="500"
+              alt="Circular Placeholder Image"
+              className="mx-auto aspect-square overflow-hidden rounded-full object-cover sm:w-full lg:order-last shadow-2xl"
             />
           </div>
         </div>
