@@ -6,11 +6,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, MessageSquareIcon, User, Bot, Loader2, Sparkles } from 'lucide-react';
+import { Send, MessageSquareIcon, User, Bot, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
-// TODO: Import relevant Genkit flows, e.g., a general purpose chat flow or specific answer-related flows
-// import { askGeneralQuestion, AskGeneralQuestionInput, AskGeneralQuestionOutput } from '@/ai/flows/ask-general-question';
+import { askGeneralQuestion, GeneralChatInput, GeneralChatOutput } from '@/ai/flows/general-chat-flow';
+import { toast } from '@/hooks/use-toast';
 
 interface Message {
   id: string;
@@ -60,15 +60,9 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      // TODO: Replace with actual Genkit flow call
-      // For example:
-      // const aiInput: AskGeneralQuestionInput = { query: userMessage.text };
-      // const aiResponseData: AskGeneralQuestionOutput = await askGeneralQuestion(aiInput);
-      // const aiText = aiResponseData.answer;
-
-      // Mock AI Response
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const aiText = `This is a mock AI response to: "${userMessage.text}". In a real application, I would provide a helpful answer using Genkit!`;
+      const aiInput: GeneralChatInput = { query: userMessage.text };
+      const aiResponseData: GeneralChatOutput = await askGeneralQuestion(aiInput);
+      const aiText = aiResponseData.response;
 
       const aiMessage: Message = {
         id: `ai-${Date.now()}`,
@@ -79,6 +73,11 @@ export default function ChatPage() {
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error('Error sending message or getting AI response:', error);
+      toast({
+        title: "AI Error",
+        description: "Sorry, I encountered an error trying to respond. Please try again.",
+        variant: "destructive",
+      });
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         text: 'Sorry, I encountered an error. Please try again.',
@@ -125,7 +124,7 @@ export default function ChatPage() {
                         : 'bg-muted text-foreground rounded-bl-none'
                     }`}
                   >
-                    <p className="text-sm">{message.text}</p>
+                    <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                     <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground/70'}`}>
                         {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
