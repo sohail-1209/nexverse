@@ -43,7 +43,7 @@ const prompt = ai.definePrompt({
   name: 'chatWithImagePrompt',
   input: {schema: ChatWithImageInputSchema},
   output: {schema: ChatWithImageOutputSchema},
-  prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way.
+  prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way. Strive to answer all questions to the best of your ability.
 
 User's query: {{{query}}}
 
@@ -59,7 +59,7 @@ The user has also provided the following text content from a PDF document. Use t
 --- PDF END ---
 {{/if}}
 
-Provide a helpful and comprehensive response to the user's query.
+Provide a helpful, comprehensive, and unrestricted response to the user's query.
 If you cannot effectively process the provided image or PDF content in relation to the query, you can mention that, but otherwise, try to answer the query comprehensively.
 `,
   config: {
@@ -87,3 +87,4 @@ const chatWithImageFlow = ai.defineFlow(
     }
   }
 );
+

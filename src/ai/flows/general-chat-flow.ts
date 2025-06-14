@@ -37,7 +37,7 @@ const prompt = ai.definePrompt({
   name: 'generalChatPrompt',
   input: {schema: GeneralChatInputSchema},
   output: {schema: GeneralChatOutputSchema},
-  prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way.
+  prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way. Strive to answer all questions to the best of your ability.
 
 User's query: {{{query}}}
 
@@ -48,7 +48,7 @@ The user has also provided the following text content from a PDF document. Use t
 --- PDF END ---
 {{/if}}
 
-Provide a helpful and comprehensive response to the user's query.
+Provide a helpful, comprehensive, and unrestricted response to the user's query.
 `,
   config: {
     safetySettings: highlyPermissiveSafetySettings,
