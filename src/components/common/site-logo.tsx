@@ -1,5 +1,5 @@
 
-import { Orbit } from 'lucide-react'; // Changed from Atom to Orbit
+import { Sparkles } from 'lucide-react'; // Changed from Orbit to Sparkles
 import { cn } from '@/lib/utils';
 
 interface SiteLogoProps {
@@ -19,7 +19,7 @@ export function SiteLogo({ size = 32, className, iconClassName }: SiteLogoProps)
       )}
       style={{ width: size, height: size }}
     >
-      <Orbit // Changed from Atom to Orbit
+      <Sparkles // Changed from Orbit to Sparkles
         size={iconSize}
         className={cn("stroke-[1.5]", iconClassName)} // Ensure stroke width is appropriate
       />
