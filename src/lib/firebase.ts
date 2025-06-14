@@ -67,7 +67,7 @@ if (!getApps().length) {
       console.warn("[Firebase Init] Client-side: Failed to re-initialize Analytics:", e);
     }
   }
-  storage = getStorage(app); 
+  storage = getStorage(app);
 }
 
 // Ensure app is defined before trying to use it for auth and db
