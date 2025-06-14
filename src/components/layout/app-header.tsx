@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator'; // Import Separator
 import { LogIn, LogOut, Menu } from 'lucide-react'; 
 import { SiteLogo } from '@/components/common/site-logo';
 import { usePathname } from 'next/navigation';
@@ -76,23 +77,61 @@ export default function AppHeader() {
     </>
   );
   
-  const renderProfileLinks = (isMobile = false, closeMenu?: () => void) => (
+  const renderProfileLinks = (isMobile = false, closeMenu?: () => void) => {
+    const handleLinkClick = () => {
+      if (isMobile && closeMenu) closeMenu();
+    };
+    const handleLogoutClick = () => {
+      signOut();
+      if (isMobile && closeMenu) closeMenu();
+    }
+
+    if (isMobile) {
+      return (
+        <>
+          {profileNavLinks.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={handleLinkClick}
+              className="flex items-center px-3 py-2 text-base rounded-md hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
+            >
+              {item.icon && <item.icon className="mr-2 h-4 w-4" />}
+              <span>{item.title}</span>
+            </Link>
+          ))}
+          <Separator className="my-2" />
+          <Button
+            variant="ghost"
+            onClick={handleLogoutClick}
+            className="w-full justify-start flex items-center px-3 py-2 text-base rounded-md hover:bg-accent hover:text-accent-foreground transition-colors text-muted-foreground"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Log out</span>
+          </Button>
+        </>
+      );
+    }
+
+    // Desktop Dropdown
+    return (
      <>
         {profileNavLinks.map((item) => (
-          <DropdownMenuItem key={item.href} asChild className={cn(isMobile ? "px-3 py-2 text-base" : "", "cursor-pointer")}>
-            <Link href={item.href} onClick={() => { if (isMobile && closeMenu) closeMenu(); }}>
+          <DropdownMenuItem key={item.href} asChild className="cursor-pointer">
+            <Link href={item.href} onClick={handleLinkClick}>
               {item.icon && <item.icon className="mr-2 h-4 w-4" />}
               <span>{item.title}</span>
             </Link>
           </DropdownMenuItem>
         ))}
-        <DropdownMenuSeparator className={cn(isMobile ? "my-2" : "")} />
-        <DropdownMenuItem onClick={() => { signOut(); if (isMobile && closeMenu) closeMenu(); }} className={cn(isMobile ? "px-3 py-2 text-base" : "", "cursor-pointer")}>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogoutClick} className="cursor-pointer">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>
     </>
-  );
+    );
+  };
 
 
   return (
@@ -170,8 +209,9 @@ export default function AppHeader() {
                     <>
                       <div className="my-2 border-t border-border/40 -mx-4"></div>
                       <div className="px-3 py-1 text-sm font-medium text-muted-foreground">My Account</div>
-                      {/* Using DropdownMenuItem components directly for styling consistency with commonProfileLinks */}
-                      {renderProfileLinks(true, () => setMobileMenuOpen(false))}
+                      <div className="flex flex-col space-y-1">
+                        {renderProfileLinks(true, () => setMobileMenuOpen(false))}
+                      </div>
                     </>
                   )}
                 </nav>
