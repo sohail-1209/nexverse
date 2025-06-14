@@ -9,7 +9,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4">
-            <SiteLogo size={64} />
+            <SiteLogo size={56} />
           </div>
           <CardTitle className="font-headline text-3xl">Welcome Back!</CardTitle>
           <CardDescription>Log in to your NExVERSE account to continue.</CardDescription>

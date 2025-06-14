@@ -1,22 +1,28 @@
 
-import Image from 'next/image';
+import { GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SiteLogoProps {
   size?: number;
   className?: string;
+  iconClassName?: string;
 }
 
-export function SiteLogo({ size = 32, className }: SiteLogoProps) {
+export function SiteLogo({ size = 32, className, iconClassName }: SiteLogoProps) {
+  const iconSize = Math.floor(size * 0.6); // Adjust icon size relative to container
+
   return (
-    <Image
-      src="https://placehold.co/100x100/3B82F6/FFFFFF.png?text=N"
-      data-ai-hint="logo initial"
-      alt="NExVERSE Logo"
-      width={size}
-      height={size}
-      className={cn("rounded-full border-2 border-muted", className)}
-      priority 
-    />
+    <div
+      className={cn(
+        "flex items-center justify-center rounded-full bg-primary text-primary-foreground border-2 border-muted",
+        className
+      )}
+      style={{ width: size, height: size }}
+    >
+      <GraduationCap
+        size={iconSize}
+        className={cn("stroke-[1.5]", iconClassName)}
+      />
+    </div>
   );
 }
