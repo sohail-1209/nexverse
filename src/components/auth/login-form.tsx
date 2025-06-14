@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '@/lib/firebase'; // Imports the initialized auth object
+import { auth, db, doc, setDoc, getDoc, serverTimestamp } from '@/lib/firebase'; // Imports the initialized auth object
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
@@ -74,10 +74,15 @@ export function LoginForm() {
       //    you MUST add `[YOUR_PROJECT_ID].firebaseapp.com` (i.e., `nexverse-2cc70.firebaseapp.com`) to the list.
       // 3. Your main application domain (e.g., `nexverse-2cc70.web.app` or your custom domain)
       //    MUST ALSO be in the "Authorized domains" list.
+      // 4. IMPORTANT: The domain your application is *currently running on* when you click the Google Sign-In button
+      //    (e.g., `6000-firebase-studio-1749913046111.cluster-ikxjzjhlifcwuroomfkjrx437g.cloudworkstations.dev` if in Firebase Studio)
+      //    MUST ALSO be added to the "Authorized domains" list in the Firebase Console.
       // The `auth/unauthorized-domain` error means one of these conditions is not met OR the `authDomain` is not being correctly loaded/set from secrets.
       // TRIPLE CHECK the VALUE of your `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_SECRET` in Google Secret Manager. It must be "nexverse-2cc70.firebaseapp.com".
       console.log('[NExVERSE Google Sign-In] Attempting sign-in. Using auth object with authDomain:', auth.config.authDomain);
       console.log('[NExVERSE Google Sign-In] Firebase App Name for auth object:', auth.app.name);
+      console.log('[NExVERSE Google Sign-In] Current window.location.origin:', window.location.origin);
+
 
       await signInWithPopup(auth, provider);
       toast({ title: 'Login Successful', description: 'Welcome!' });
@@ -86,7 +91,7 @@ export function LoginForm() {
       console.error('Google Sign-In failed:', error);
       let errorMessage = error.message || 'An unexpected error occurred.';
       if (error.code === 'auth/unauthorized-domain') {
-        errorMessage = `This app's domain (e.g., nexverse-2cc70.web.app) OR the Firebase OAuth redirect domain (nexverse-2cc70.firebaseapp.com) is not authorized. Please check Firebase console settings under Authentication > Sign-in method > Authorized domains. Ensure BOTH domains are listed. Also verify the 'authDomain' in your client-side Firebase config is 'nexverse-2cc70.firebaseapp.com' (check browser console logs for "[NExVERSE Firebase Debug Client] Auth Domain: ..."). The currently configured authDomain for this attempt was: ${auth.config.authDomain}`;
+        errorMessage = `This app's current domain (e.g., ${window.location.origin}) OR the Firebase OAuth redirect domain (nexverse-2cc70.firebaseapp.com) is not authorized. Please check Firebase console settings under Authentication > Sign-in method > Authorized domains. Ensure ALL relevant domains are listed. The currently configured authDomain for this attempt was: ${auth.config.authDomain}. The Firebase SDK also reported the originating domain might be an issue.`;
       } else if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = "Sign-in popup closed by user.";
       } else if (error.code === 'auth/cancelled-popup-request') {

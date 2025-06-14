@@ -122,5 +122,8 @@ const db: Firestore = getFirestore(app!);
 //    MUST be `[YOUR_PROJECT_ID].firebaseapp.com`.
 // 4. Double check the VALUE of your `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_SECRET` in Google Secret Manager. It must be exactly `nexverse-2cc70.firebaseapp.com`.
 // 5. Ensure the App Hosting service account has "Secret Manager Secret Accessor" permission for this secret.
+// 6. VERY IMPORTANT FOR FIREBASE STUDIO / CLOUD WORKSTATIONS: The specific domain of your development environment
+//    (e.g., `6000-firebase-studio-1749913046111.cluster-ikxjzjhlifcwuroomfkjrx437g.cloudworkstations.dev`)
+//    MUST ALSO be added to the "Authorized domains" list in the Firebase Console. The Firebase SDK error message often indicates this domain.
 
 export { app, auth, db, analytics, storageInstance as storage, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc, ref, uploadBytes, getDownloadURL, deleteObject, orderBy, limit, startAfter, documentId };
