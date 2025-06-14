@@ -239,10 +239,23 @@ export default function AnswerDetailPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="h-5 w-5 text-primary" />
-                  <span className="font-medium">Attached File</span>
+                  <span className="font-medium truncate max-w-xs">
+                    Attached File: {answer.fileName || 'View Attachment'}
+                  </span>
                 </div>
                 <Button variant="outline" size="sm" asChild>
-                  <a href={answer.fileURL} target="_blank" rel="noopener noreferrer">
+                  <a 
+                    href={answer.fileURL} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    download={answer.fileName}
+                    onClick={() => {
+                      toast({
+                        title: "Download Started",
+                        description: `"${answer.fileName || 'The attached file'}" is being downloaded.`,
+                      });
+                    }}
+                  >
                     <Download className="mr-2 h-4 w-4" /> Download
                   </a>
                 </Button>
