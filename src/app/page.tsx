@@ -1,3 +1,4 @@
+
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -29,11 +30,10 @@ export default function HomePage() {
               </div>
             </div>
             <Image
-              src="https://placehold.co/600x400.png"
-              data-ai-hint="education study"
+              src="https://img.freepik.com/premium-photo/this-cloud-storage-icon-features-cloud-with-download-arrow-indicating-that-files-can-be-downloaded-generated-by-ai_399089-7161.jpg"
               width="600"
               height="400"
-              alt="Hero"
+              alt="Cloud Storage Icon"
               className="mx-auto aspect-video overflow-hidden rounded-xl object-cover sm:w-full lg:order-last lg:aspect-square shadow-2xl"
             />
           </div>
