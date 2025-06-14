@@ -93,14 +93,14 @@ export default function ChatPage() {
           setMessages(parsedMessages);
         } else {
           setMessages([
-            { id: 'ai-greeting', text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, or send an image for context.", sender: 'ai', timestamp: new Date() }
+            { id: 'ai-greeting', text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, send an image, or use voice input for a comprehensive interaction.", sender: 'ai', timestamp: new Date() }
           ]);
         }
       }
     } catch (error) {
       console.error("Error loading messages from localStorage:", error);
       setMessages([
-        { id: 'ai-greeting', text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, or send an image for context.", sender: 'ai', timestamp: new Date() }
+        { id: 'ai-greeting', text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, send an image, or use voice input for a comprehensive interaction.", sender: 'ai', timestamp: new Date() }
       ]);
     }
   }, []);
@@ -397,7 +397,17 @@ export default function ChatPage() {
         aiResponseData = await askGeneralQuestion(aiInput);
       }
       
-      const aiText = aiResponseData.response;
+      let aiText = aiResponseData.response;
+
+      // Attempt to parse aiText if it's a JSON string containing a 'response' field
+      try {
+        const parsedResponse = JSON.parse(aiText);
+        if (typeof parsedResponse === 'object' && parsedResponse !== null && typeof parsedResponse.response === 'string') {
+          aiText = parsedResponse.response;
+        }
+      } catch (parseError) {
+        // If parsing fails, aiText is likely already the direct string response, so do nothing.
+      }
 
       const aiMessage: Message = {
         id: `ai-${Date.now()}`,
@@ -427,6 +437,7 @@ export default function ChatPage() {
         setShowCameraView(false); 
         setIsCapturing(false);
       }
+      // Do not clear attachedPdf here, user might want to ask multiple questions about it
     }
   };
 
