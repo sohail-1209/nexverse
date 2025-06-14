@@ -59,10 +59,17 @@ const generalChatFlow = ai.defineFlow(
     outputSchema: GeneralChatOutputSchema,
   },
   async (input) => {
-    const {output} = await prompt(input);
-    if (!output) {
-      return { response: "Sorry, I wasn't able to generate a response. Please try again." };
+    try {
+      const {output} = await prompt(input);
+      if (!output || !output.response) {
+        console.warn('Genkit generalChatFlow: Prompt did not return a valid output or response field.');
+        return { response: "Sorry, I wasn't able to generate a clear response. Please try a different query." };
+      }
+      return output;
+    } catch (error) {
+      console.error('Error in generalChatFlow during prompt execution:', error);
+      // Return a structured error response conforming to the output schema
+      return { response: "Sorry, an internal error occurred while processing your request. Please try again later." };
     }
-    return output;
   }
 );
