@@ -1,4 +1,5 @@
-import { Home, BookOpenText, Bookmark, MessageSquare, PlusCircle, Users, Settings, User } from "lucide-react";
+
+import { Home, BookOpenText, Bookmark, MessageSquare, PlusCircle, Users, Settings, User, LibrarySquare } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type NavItem = {
@@ -33,18 +34,12 @@ export const siteConfig: SiteConfig = {
       href: "/",
       icon: Home,
     },
-    // Publicly accessible subjects overview perhaps? Or this moves to authenticatedNav
-    // {
-    //   title: "Subjects",
-    //   href: "/subjects",
-    //   icon: BookOpenText,
-    // },
   ],
   authenticatedNav: [
      {
       title: "Dashboard",
       href: "/dashboard",
-      icon: Home, // Using Home for dashboard, can change
+      icon: Home,
     },
     {
       title: "Subjects",
@@ -71,11 +66,17 @@ export const siteConfig: SiteConfig = {
     {
       title: "Moderation",
       href: "/admin/moderation",
-      icon: Users, // Or a shield icon
+      icon: Users,
       description: "Manage content and users."
     },
+    {
+      title: "Manage Subjects",
+      href: "/admin/subjects",
+      icon: LibrarySquare,
+      description: "Add or edit subjects."
+    }
   ],
-  profileNav: [ // Could be used in a user profile dropdown or a settings page sidebar
+  profileNav: [ 
     {
       title: "Profile",
       href: "/profile",
@@ -88,3 +89,4 @@ export const siteConfig: SiteConfig = {
     }
   ]
 };
+

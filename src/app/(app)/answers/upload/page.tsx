@@ -26,10 +26,10 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, UploadCloud } from 'lucide-react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy as fbOrderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 
@@ -39,7 +39,7 @@ const ACCEPTED_FILE_TYPES = ['application/pdf', 'application/msword', 'applicati
 
 const answerSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }).max(150),
-  subject: z.string().min(1, { message: 'Please select a subject.' }),
+  subject: z.string().min(1, { message: 'Please select a subject.' }), // This will be subjectId
   category: z.string().min(1, { message: 'Please select a category.' }),
   type: z.string().min(1, { message: 'Please select an answer type/mark.' }),
   content: z.string().min(50, { message: 'Answer content must be at least 50 characters.' }),
@@ -61,15 +61,10 @@ const answerSchema = z.object({
 
 type AnswerFormValues = z.infer<typeof answerSchema>;
 
-// TODO: Fetch subjects from Firestore or use a predefined list that includes names
-const mockSubjects = [
-  { id: 'physics', name: 'Physics' },
-  { id: 'chemistry', name: 'Chemistry' },
-  { id: 'mathematics', name: 'Mathematics' },
-  { id: 'biology', name: 'Biology' },
-  { id: 'computer_science', name: 'Computer Science' },
-  { id: 'history', name: 'History' },
-];
+interface SubjectOption {
+  id: string;
+  name: string;
+}
 
 const answerCategories = ['Conceptual', 'Problem-Solving', 'Derivation', 'Diagram', 'Short Note', 'Comparison'];
 const answerTypes = ['2-mark', '5-mark', '10-mark', '15-mark', 'Other'];
@@ -78,6 +73,30 @@ export default function UploadAnswerPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  const [isSubjectsLoading, setIsSubjectsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      setIsSubjectsLoading(true);
+      try {
+        const subjectsCollection = collection(db, 'subjects');
+        const q = query(subjectsCollection, fbOrderBy('name', 'asc'));
+        const querySnapshot = await getDocs(q);
+        const fetchedSubjects: SubjectOption[] = [];
+        querySnapshot.forEach((doc) => {
+          fetchedSubjects.push({ id: doc.id, name: doc.data().name as string });
+        });
+        setSubjects(fetchedSubjects);
+      } catch (error) {
+        console.error("Error fetching subjects for upload form:", error);
+        toast({ title: "Error", description: "Could not load subjects. Please try again later.", variant: "destructive"});
+      } finally {
+        setIsSubjectsLoading(false);
+      }
+    };
+    fetchSubjects();
+  }, []);
 
   const form = useForm<AnswerFormValues>({
     resolver: zodResolver(answerSchema),
@@ -100,22 +119,22 @@ export default function UploadAnswerPage() {
     setIsLoading(true);
     try {
       let fileURL = null;
-      let fileName = null; // To store the file name for potential future deletion reference
+      let fileName = null;
 
       if (values.file && values.file.length > 0) {
         const fileToUpload = values.file[0];
-        fileName = `${Date.now()}_${fileToUpload.name}`; // Store unique file name
+        fileName = `${Date.now()}_${fileToUpload.name}`;
         const storageRef = ref(storage, `answers/${user.uid}/${fileName}`);
         await uploadBytes(storageRef, fileToUpload);
         fileURL = await getDownloadURL(storageRef);
       }
 
-      const selectedSubject = mockSubjects.find(s => s.id === values.subject);
+      const selectedSubject = subjects.find(s => s.id === values.subject);
 
       const answerData = {
         title: values.title,
-        subjectId: values.subject,
-        subjectName: selectedSubject ? selectedSubject.name : 'Unknown Subject', // Store subject name
+        subjectId: values.subject, // This is the ID from 'subjects' collection
+        subjectName: selectedSubject ? selectedSubject.name : 'Unknown Subject', 
         category: values.category,
         type: values.type,
         content: values.content,
@@ -124,11 +143,11 @@ export default function UploadAnswerPage() {
         authorName: user.displayName || user.email,
         authorAvatar: user.photoURL || null,
         createdAt: serverTimestamp(),
-        isVerified: false, // Default to unverified
+        isVerified: false, 
         views: 0,
         likes: 0,
         fileURL: fileURL,
-        fileName: fileName, // Store file name if uploaded
+        fileName: fileName,
       };
       
       const docRef = await addDoc(collection(db, 'answers'), answerData);
@@ -176,16 +195,22 @@ export default function UploadAnswerPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Subject</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubjectsLoading}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a subject" />
+                          <SelectValue placeholder={isSubjectsLoading ? "Loading subjects..." : "Select a subject"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {mockSubjects.map(subject => (
-                          <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
-                        ))}
+                        {isSubjectsLoading ? (
+                            <SelectItem value="loading" disabled>Loading...</SelectItem>
+                        ) : subjects.length > 0 ? (
+                          subjects.map(subject => (
+                            <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
+                          ))
+                        ) : (
+                           <SelectItem value="no-subjects" disabled>No subjects available. Admin can add them.</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -290,10 +315,13 @@ export default function UploadAnswerPage() {
               )}
             />
 
-            <Button type="submit" className="w-full md:w-auto" disabled={isLoading || !user}>
+            <Button type="submit" className="w-full md:w-auto" disabled={isLoading || !user || isSubjectsLoading || subjects.length === 0}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Answer
             </Button>
+            {subjects.length === 0 && !isSubjectsLoading && (
+                <p className="text-sm text-destructive mt-2">Cannot submit answer: No subjects available. Please ask an administrator to add subjects.</p>
+            )}
           </form>
         </Form>
       </CardContent>
