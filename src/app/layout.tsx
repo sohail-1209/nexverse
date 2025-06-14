@@ -12,7 +12,6 @@ import { GlobalAuthRedirect } from '@/components/layout/global-auth-redirect';
 export const metadata: Metadata = {
   title: 'NExVERSE - Your Exam Companion',
   description: 'Organize, share, and discover exam answers with NExVERSE.',
-  // manifest: "/manifest.json", 
 };
 
 export default function RootLayout({
@@ -32,7 +31,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="NExVERSE" />
-        <link rel="apple-touch-icon" href="https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcS9spLSZsqR6lnssbwBPgPEyc6A7YvHjcoyB05hFmApXolmKKd3"/>
+        <link rel="apple-touch-icon" href="https://placehold.co/180x180/3B82F6/3B82F6.png"/>
       </head>
       <body className={cn("min-h-screen bg-background font-body antialiased flex flex-col")}>
         <ThemeProvider

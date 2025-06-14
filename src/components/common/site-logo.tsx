@@ -9,7 +9,8 @@ interface SiteLogoProps {
 export function SiteLogo({ size = 32, className }: SiteLogoProps) {
   return (
     <Image
-      src="https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcS9spLSZsqR6lnssbwBPgPEyc6A7YvHjcoyB05hFmApXolmKKd3"
+      src="https://placehold.co/100x100/3B82F6/FFFFFF.png?text=N"
+      data-ai-hint="logo initial"
       alt="NExVERSE Logo"
       width={size}
       height={size}
