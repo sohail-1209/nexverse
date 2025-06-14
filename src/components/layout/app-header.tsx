@@ -13,13 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Separator } from '@/components/ui/separator'; // Import Separator
+import { Separator } from '@/components/ui/separator';
 import { LogIn, LogOut, Menu } from 'lucide-react'; 
 import { SiteLogo } from '@/components/common/site-logo';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { siteConfig } from '@/config/site';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'; // Added SheetHeader, SheetTitle
 import React from 'react';
 
 
@@ -35,7 +35,7 @@ const NavLink = ({ href, children, icon, onClick }: { href: string; children: Re
         isActive ? "text-primary bg-primary/10" : "text-muted-foreground",
       )}
     >
-      {icon && React.isValidElement(icon) && React.cloneElement(icon, { className: "mr-2 h-4 w-4" })}
+      {icon && React.isValidElement(icon) && React.cloneElement(icon as React.ReactElement<any>, { className: "mr-2 h-4 w-4" })}
       {children}
     </Link>
   );
@@ -50,7 +50,7 @@ export default function AppHeader() {
   const mainNavLinks = siteConfig.mainNav;
   const authenticatedNavLinks = siteConfig.authenticatedNav;
   const adminNavLinks = siteConfig.adminNav;
-  const profileNavLinks = siteConfig.profileNav || [];
+  const profileNavLinksConfig = siteConfig.profileNav || [];
 
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
@@ -89,7 +89,7 @@ export default function AppHeader() {
     if (isMobile) {
       return (
         <>
-          {profileNavLinks.map((item) => (
+          {profileNavLinksConfig.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -116,7 +116,7 @@ export default function AppHeader() {
     // Desktop Dropdown
     return (
      <>
-        {profileNavLinks.map((item) => (
+        {profileNavLinksConfig.map((item) => (
           <DropdownMenuItem key={item.href} asChild className="cursor-pointer">
             <Link href={item.href} onClick={handleLinkClick}>
               {item.icon && <item.icon className="mr-2 h-4 w-4" />}
@@ -201,8 +201,11 @@ export default function AppHeader() {
                   <span className="sr-only">Toggle menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[280px] p-0 pt-10 flex flex-col">
-                <nav className="flex flex-col space-y-2 px-4 flex-grow">
+              <SheetContent side="right" className="w-[280px] p-0 flex flex-col">
+                <SheetHeader className="p-4 pb-0">
+                  <SheetTitle className="text-left text-lg font-headline text-primary">Menu</SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col space-y-1 px-4 flex-grow mt-4">
                   {renderNavLinks(true)}
                   
                   {user && (
