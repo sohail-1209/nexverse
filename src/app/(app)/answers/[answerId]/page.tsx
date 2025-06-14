@@ -273,7 +273,7 @@ export default function AnswerDetailPage() {
               )}
               {(isOwner || isAdmin) && (
                 <>
-                  <Button variant="outline" size="icon" disabled title="Edit feature coming soon"> {/* TODO: Create edit page */}
+                  <Button variant="outline" size="icon" disabled title="Edit feature coming soon"> {/* No asChild, no Link */}
                     <Edit className="h-4 w-4" />
                     <span className="sr-only">Edit</span>
                   </Button>
