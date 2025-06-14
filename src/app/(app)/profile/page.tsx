@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect } from 'react';
 import { updateProfile, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
-import { auth, db, doc, updateDoc, getDoc } from '@/lib/firebase'; // Added db, doc, updateDoc, getDoc
+import { auth, db, doc, updateDoc, getDoc } from '@/lib/firebase';
 import { toast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -45,9 +45,12 @@ export default function ProfilePage() {
         await updateProfile(user, { displayName });
         // Also update in Firestore 'users' collection
         const userDocRef = doc(db, 'users', user.uid);
+        // Check if the document exists before attempting to update
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
             await updateDoc(userDocRef, { displayName: displayName });
+        } else {
+            console.warn(`User document for UID ${user.uid} not found in Firestore. DisplayName not updated there.`);
         }
       }
 
@@ -62,6 +65,8 @@ export default function ProfilePage() {
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
             await updateDoc(userDocRef, { email: email });
+        } else {
+             console.warn(`User document for UID ${user.uid} not found in Firestore. Email not updated there.`);
         }
         setCurrentPassword(''); 
       } else if (email !== user.email && !currentPassword) {

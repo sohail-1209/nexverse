@@ -3,7 +3,7 @@
 
 import type { User as FirebaseUser } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { auth, db, doc, getDoc } from '@/lib/firebase'; // Added db, doc, getDoc
+import { auth, db, doc, getDoc } from '@/lib/firebase';
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
@@ -27,13 +27,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         // Fetch user role from Firestore
-        // ** Ensure Firestore database is created in your Firebase Console project for this to work **
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
+        // This expects a 'users' collection with documents named by user UID,
+        // and each document should have a 'role' field.
+        try {
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
+            setIsAdmin(true);
+            console.log(`User ${firebaseUser.uid} is an admin.`);
+          } else {
+            setIsAdmin(false);
+            if (userDocSnap.exists()) {
+              console.log(`User ${firebaseUser.uid} is not an admin. Role: ${userDocSnap.data().role}`);
+            } else {
+              console.warn(`User document not found in Firestore for UID: ${firebaseUser.uid}. Defaulting to non-admin.`);
+            }
+          }
+        } catch (error) {
+            console.error("Error fetching user role from Firestore:", error);
+            setIsAdmin(false); // Default to non-admin on error
         }
       } else {
         setUser(null);
@@ -48,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-      router.push('/auth/login');
+      router.push('/auth/login'); // Redirect to login after sign out
     } catch (error) {
       console.error("Error signing out: ", error);
       // Potentially show a toast notification for error

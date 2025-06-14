@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, UserCredential } from 'firebase/auth';
-import { auth, db, doc, setDoc, getDoc, serverTimestamp } from '@/lib/firebase'; // Added db, doc, setDoc, getDoc, serverTimestamp
+import { auth, db, doc, setDoc, getDoc, serverTimestamp } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
@@ -49,28 +49,51 @@ export function SignupForm() {
     },
   });
 
-  const saveUserToFirestore = async (userCred: UserCredential, displayName?: string) => {
+  const saveUserToFirestore = async (userCred: UserCredential, displayNameFromForm?: string) => {
     const user = userCred.user;
     if (!user) return;
 
     const userDocRef = doc(db, "users", user.uid);
-    // Check if user document already exists (e.g., from a previous Google sign-in)
     const userDocSnap = await getDoc(userDocRef);
 
+    let finalDisplayName = displayNameFromForm || user.displayName || user.email?.split('@')[0] || "Anonymous User";
+    let finalPhotoURL = user.photoURL || null;
+
     if (!userDocSnap.exists()) {
+      // New user, create the document
       await setDoc(userDocRef, {
         uid: user.uid,
-        displayName: displayName || user.displayName,
+        displayName: finalDisplayName,
         email: user.email,
-        photoURL: user.photoURL,
+        photoURL: finalPhotoURL,
         role: "user", // Default role
         createdAt: serverTimestamp(),
       });
+      console.log(`Created new user document in Firestore for UID: ${user.uid}`);
     } else {
-      // Optionally update existing document if needed, e.g. displayName if Google sign-in was first
-      if (displayName && userDocSnap.data()?.displayName !== displayName) {
-        await setDoc(userDocRef, { displayName }, { merge: true });
+      // User document exists, possibly from a different sign-in method or previous session
+      // Merge new info, ensuring essential fields are present
+      const existingData = userDocSnap.data();
+      const updateData: any = {
+        // Ensure email and uid are always there (though they shouldn't change)
+        email: user.email || existingData.email, 
+        uid: user.uid,
+        // Update displayName if a new one is provided from form, or if Google's is different, or if current is placeholder
+        displayName: displayNameFromForm || (user.displayName && user.displayName !== existingData.displayName ? user.displayName : existingData.displayName),
+        // Update photoURL if a new one is provided (typically from Google)
+        photoURL: user.photoURL || existingData.photoURL,
+        // Ensure role exists, default to 'user' if somehow missing
+        role: existingData.role || "user",
+        // Ensure createdAt exists, use serverTimestamp if missing (should ideally not happen for existing docs)
+        createdAt: existingData.createdAt || serverTimestamp(),
+      };
+       // If displayNameFromForm is provided and differs from existing, prioritize form input
+      if (displayNameFromForm && displayNameFromForm !== existingData.displayName) {
+        updateData.displayName = displayNameFromForm;
       }
+
+      await setDoc(userDocRef, updateData, { merge: true });
+      console.log(`Updated existing user document in Firestore for UID: ${user.uid}`);
     }
   };
 
@@ -79,14 +102,18 @@ export function SignupForm() {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      await updateProfile(userCredential.user, { displayName: values.displayName });
+      // Update Firebase Auth profile
+      if (userCredential.user) {
+        await updateProfile(userCredential.user, { displayName: values.displayName });
+      }
       
+      // Save/update user data in Firestore
       await saveUserToFirestore(userCredential, values.displayName);
 
       toast({ title: 'Signup Successful', description: 'Welcome to NExVERSE!' });
       router.push('/dashboard'); 
     } catch (error: any) {
-      console.error(error);
+      console.error("Error during email/password signup:", error);
       let errorMessage = 'An unexpected error occurred. Please try again.';
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'This email address is already in use.';
@@ -102,11 +129,13 @@ export function SignupForm() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      await saveUserToFirestore(result);
+      // Save/update user data in Firestore using info from Google
+      await saveUserToFirestore(result); 
       toast({ title: 'Sign-in Successful', description: 'Welcome!' });
       router.push('/dashboard');
-    } catch (error: any) {
-      console.error(error);
+    } catch (error: any)
+{
+      console.error("Error during Google sign-in:", error);
       toast({ title: 'Google Sign-In Failed', description: error.message || "An error occurred", variant: 'destructive' });
     } finally {
       setIsGoogleLoading(false);
