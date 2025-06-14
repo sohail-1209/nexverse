@@ -33,6 +33,10 @@ import { Loader2, UploadCloud } from 'lucide-react';
 // TODO: import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 // TODO: import { db, storage } from '@/lib/firebase';
 
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const ACCEPTED_FILE_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+
+
 const answerSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }).max(150),
   subject: z.string().min(1, { message: 'Please select a subject.' }),
@@ -40,7 +44,19 @@ const answerSchema = z.object({
   type: z.string().min(1, { message: 'Please select an answer type/mark.' }),
   content: z.string().min(50, { message: 'Answer content must be at least 50 characters.' }),
   tags: z.string().optional().describe('Comma-separated tags'),
-  file: typeof window === 'undefined' ? z.any().optional() : z.instanceof(FileList).optional().nullable(),
+  file: typeof window === 'undefined' 
+    ? z.any().optional() 
+    : z.instanceof(FileList)
+        .optional()
+        .nullable()
+        .refine(
+          (files) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE,
+          `Max file size is 100MB.`
+        )
+        .refine(
+          (files) => !files || files.length === 0 || ACCEPTED_FILE_TYPES.includes(files[0].type),
+          "Only .pdf, .doc, .docx, and .txt files are accepted."
+        ),
 });
 
 type AnswerFormValues = z.infer<typeof answerSchema>;
@@ -111,7 +127,7 @@ export default function UploadAnswerPage() {
       
       console.log('Form submitted:', values);
       if (values.file && values.file.length > 0) {
-        console.log('File to upload:', values.file[0].name);
+        console.log('File to upload:', values.file[0].name, 'Size:', values.file[0].size, 'Type:', values.file[0].type);
         // TODO: Implement actual file upload to Firebase Storage here
       }
       await new Promise(resolve => setTimeout(resolve, 1500));
@@ -242,18 +258,18 @@ export default function UploadAnswerPage() {
             <FormField
               control={form.control}
               name="file"
-              render={({ field: { onChange, value, ...rest } }) => ( // Destructure field to handle file input
+              render={({ field: { onChange, value, ...rest } }) => ( 
                 <FormItem>
                   <FormLabel>Attach File (Optional)</FormLabel>
                   <FormControl>
                      <Input 
                         type="file" 
-                        accept=".pdf,.doc,.docx,.txt" // Specify accepted file types
+                        accept=".pdf,.doc,.docx,.txt" 
                         onChange={(e) => onChange(e.target.files)} 
                         {...rest}
                       />
                   </FormControl>
-                  <FormDescription>Upload diagrams, PDFs, Word documents, or text files (max 5MB).</FormDescription>
+                  <FormDescription>Upload PDFs, Word documents, or text files (max 100MB).</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -284,3 +300,4 @@ export default function UploadAnswerPage() {
     </Card>
   );
 }
+
