@@ -7,6 +7,20 @@ import { getStorage, FirebaseStorage, ref, uploadBytes, getDownloadURL, deleteOb
 
 // Your web app's Firebase configuration is read from environment variables
 // These environment variables are populated by App Hosting from Google Secret Manager secrets
+
+// Log raw environment variables (client-side only for NEXT_PUBLIC_ variables)
+if (typeof window !== 'undefined') {
+  console.log('[NExVERSE Firebase Debug Client] Raw environment variables:');
+  console.log(`[NExVERSE Firebase Debug Client] Raw NEXT_PUBLIC_FIREBASE_API_KEY: ${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`);
+  console.log(`[NExVERSE Firebase Debug Client] Raw NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}`);
+  console.log(`[NExVERSE Firebase Debug Client] Raw NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`);
+  console.log(`[NExVERSE Firebase Debug Client] Raw NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}`);
+  console.log(`[NExVERSE Firebase Debug Client] Raw NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}`);
+  console.log(`[NExVERSE Firebase Debug Client] Raw NEXT_PUBLIC_FIREBASE_APP_ID: ${process.env.NEXT_PUBLIC_FIREBASE_APP_ID}`);
+  console.log(`[NExVERSE Firebase Debug Client] Raw NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID}`);
+}
+
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -32,20 +46,26 @@ if (typeof window === 'undefined') {
 } else {
   // Client-side specific logging for debugging Firebase config
   console.log('[NExVERSE Firebase Debug Client] Initializing Firebase with effective config:');
-  console.log(`[NExVERSE Firebase Debug Client] Project ID: ${firebaseConfig.projectId}`);
-  console.log(`[NExVERSE Firebase Debug Client] Auth Domain: ${firebaseConfig.authDomain}`); // CRITICAL FOR GOOGLE SIGN-IN
+  console.log(`[NExVERSE Firebase Debug Client] API Key: ${firebaseConfig.apiKey ? 'SET' : 'MISSING!'}`);
+  console.log(`[NExVERSE Firebase Debug Client] Auth Domain: ${firebaseConfig.authDomain || 'MISSING!'}`); // CRITICAL FOR GOOGLE SIGN-IN
+  console.log(`[NExVERSE Firebase Debug Client] Project ID: ${firebaseConfig.projectId || 'MISSING!'}`);
+  console.log(`[NExVERSE Firebase Debug Client] Storage Bucket: ${firebaseConfig.storageBucket || 'MISSING!'}`);
+  console.log(`[NExVERSE Firebase Debug Client] Messaging Sender ID: ${firebaseConfig.messagingSenderId || 'MISSING!'}`);
+  console.log(`[NExVERSE Firebase Debug Client] App ID: ${firebaseConfig.appId || 'MISSING!'}`);
+  console.log(`[NExVERSE Firebase Debug Client] Measurement ID: ${firebaseConfig.measurementId || 'NOT SET (optional)'}`);
+
   if (!firebaseConfig.apiKey) {
     console.error('[NExVERSE Firebase Debug Client] CRITICAL: Firebase API Key is MISSING or UNDEFINED in the client-side config.');
   }
   if (!firebaseConfig.authDomain) {
-    console.error('[NExVERSE Firebase Debug Client] CRITICAL: Firebase Auth Domain is MISSING or UNDEFINED in the client-side config. This MUST be "[YOUR_PROJECT_ID].firebaseapp.com" for Google Sign-in and added to Authorized Domains in Firebase Console.');
+    console.error('[NExVERSE Firebase Debug Client] CRITICAL: Firebase Auth Domain is MISSING or UNDEFINED in the client-side config. For Google Sign-in, this MUST be "[YOUR_PROJECT_ID].firebaseapp.com" (e.g., "nexverse-2cc70.firebaseapp.com") AND this domain must be added to "Authorized Domains" in your Firebase project settings (Authentication > Sign-in method). Your main app domain (e.g., "nexverse-2cc70.web.app") also needs to be authorized.');
   }
 }
 
 
 let app: FirebaseApp;
 let analytics: Analytics | undefined;
-let storage: FirebaseStorage;
+let storageInstance: FirebaseStorage; // Renamed to avoid conflict with imported 'storage' function
 
 if (!getApps().length) {
   try {
@@ -58,7 +78,7 @@ if (!getApps().length) {
         console.warn('[Firebase Init] Client-side: Firebase Measurement ID is missing. Analytics will not be initialized.');
       }
     }
-    storage = getStorage(app);
+    storageInstance = getStorage(app);
   } catch (error) {
     console.error('[Firebase Init] CRITICAL: Failed to initialize Firebase app. This is likely due to missing or incorrect Firebase config environment variables.', error);
     // Re-throw or handle critical failure appropriately for server-side
@@ -78,7 +98,7 @@ if (!getApps().length) {
       console.warn("[Firebase Init] Client-side: Failed to re-initialize Analytics:", e);
     }
   }
-  storage = getStorage(app);
+  storageInstance = getStorage(app);
 }
 
 // Ensure app is defined before trying to use it for auth and db
@@ -98,6 +118,9 @@ const db: Firestore = getFirestore(app!);
 //    in Firebase Console > Authentication > Sign-in method.
 // 2. Critically, for OAuth providers, the domain `[YOUR_PROJECT_ID].firebaseapp.com` (e.g., `nexverse-2cc70.firebaseapp.com`)
 //    MUST ALSO be added to "Authorized domains". This is used for the OAuth redirect.
-// 3. The `authDomain` in your `firebaseConfig` (loaded from environment variables/secrets) MUST be `[YOUR_PROJECT_ID].firebaseapp.com`.
+// 3. The `authDomain` in your `firebaseConfig` (loaded from environment variables/secrets via `process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`)
+//    MUST be `[YOUR_PROJECT_ID].firebaseapp.com`.
+// 4. Double check the VALUE of your `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_SECRET` in Google Secret Manager. It must be exactly `nexverse-2cc70.firebaseapp.com`.
+// 5. Ensure the App Hosting service account has "Secret Manager Secret Accessor" permission for this secret.
 
-export { app, auth, db, analytics, storage, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc, ref, uploadBytes, getDownloadURL, deleteObject, orderBy, limit, startAfter, documentId };
+export { app, auth, db, analytics, storageInstance as storage, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc, ref, uploadBytes, getDownloadURL, deleteObject, orderBy, limit, startAfter, documentId };

@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/lib/firebase'; // Imports the initialized auth object
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
@@ -49,7 +49,7 @@ export function LoginForm() {
       toast({ title: 'Login Successful', description: 'Welcome back!' });
       router.push('/dashboard'); // Or intended URL
     } catch (error: any) {
-      const knownAuthErrorCodes = ['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential'];
+      const knownAuthErrorCodes = ['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential', 'auth/invalid-email'];
       if (error && typeof error.code === 'string' && knownAuthErrorCodes.includes(error.code)) {
         console.info(`Login attempt failed with code: ${error.code}`);
         toast({ title: 'Login Failed', description: 'Invalid email or password. Please try again.', variant: 'destructive' });
@@ -67,15 +67,18 @@ export function LoginForm() {
     const provider = new GoogleAuthProvider();
     try {
       // For OAuth providers like Google Sign-In, which use signInWithPopup:
-      // 1. The `authDomain` in your Firebase config (src/lib/firebase.ts, loaded from secrets) MUST be
-      //    `[YOUR_PROJECT_ID].firebaseapp.com`. For this project, it must be `nexverse-2cc70.firebaseapp.com`.
+      // 1. The `authDomain` in your Firebase config (src/lib/firebase.ts, loaded from secrets via process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN)
+      //    MUST be `[YOUR_PROJECT_ID].firebaseapp.com`. For this project, it must be `nexverse-2cc70.firebaseapp.com`.
       //    Check browser console logs from `firebase.ts` to confirm this value.
       // 2. In the Firebase Console (Authentication > Sign-in method > Authorized domains),
       //    you MUST add `[YOUR_PROJECT_ID].firebaseapp.com` (i.e., `nexverse-2cc70.firebaseapp.com`) to the list.
       // 3. Your main application domain (e.g., `nexverse-2cc70.web.app` or your custom domain)
       //    MUST ALSO be in the "Authorized domains" list.
-      // The `auth/unauthorized-domain` error means one of these conditions is not met.
+      // The `auth/unauthorized-domain` error means one of these conditions is not met OR the `authDomain` is not being correctly loaded/set from secrets.
+      // TRIPLE CHECK the VALUE of your `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_SECRET` in Google Secret Manager. It must be "nexverse-2cc70.firebaseapp.com".
       console.log('[NExVERSE Google Sign-In] Attempting sign-in. Using auth object with authDomain:', auth.config.authDomain);
+      console.log('[NExVERSE Google Sign-In] Firebase App Name for auth object:', auth.app.name);
+
       await signInWithPopup(auth, provider);
       toast({ title: 'Login Successful', description: 'Welcome!' });
       router.push('/dashboard');
@@ -83,7 +86,7 @@ export function LoginForm() {
       console.error('Google Sign-In failed:', error);
       let errorMessage = error.message || 'An unexpected error occurred.';
       if (error.code === 'auth/unauthorized-domain') {
-        errorMessage = "This app's domain (e.g., nexverse-2cc70.web.app) OR the Firebase OAuth redirect domain (nexverse-2cc70.firebaseapp.com) is not authorized. Please check Firebase console settings under Authentication > Sign-in method > Authorized domains. Ensure BOTH domains are listed. Also verify the `authDomain` in your client-side Firebase config is `nexverse-2cc70.firebaseapp.com` (check browser console logs).";
+        errorMessage = `This app's domain (e.g., nexverse-2cc70.web.app) OR the Firebase OAuth redirect domain (nexverse-2cc70.firebaseapp.com) is not authorized. Please check Firebase console settings under Authentication > Sign-in method > Authorized domains. Ensure BOTH domains are listed. Also verify the 'authDomain' in your client-side Firebase config is 'nexverse-2cc70.firebaseapp.com' (check browser console logs for "[NExVERSE Firebase Debug Client] Auth Domain: ..."). The currently configured authDomain for this attempt was: ${auth.config.authDomain}`;
       } else if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = "Sign-in popup closed by user.";
       } else if (error.code === 'auth/cancelled-popup-request') {
