@@ -12,6 +12,8 @@ import { GlobalAuthRedirect } from '@/components/layout/global-auth-redirect'; /
 export const metadata: Metadata = {
   title: 'NExVERSE - Your Exam Companion',
   description: 'Organize, share, and discover exam answers with NExVERSE.',
+  // PWA specific metadata that can be set here if not dynamically generated
+  // manifest: "/manifest.json", // Next.js 13+ App Router often handles this, but explicit link is also fine.
 };
 
 export default function RootLayout({
@@ -26,6 +28,17 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        
+        {/* PWA Tags */}
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#33AADD" /> {/* Corresponds to primary color approx. */}
+        
+        {/* Apple PWA Tags */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="NExVERSE" />
+        <link rel="apple-touch-icon" href="https://placehold.co/192x192.png" data-ai-hint="app icon"/>
+
       </head>
       <body className={cn("min-h-screen bg-background font-body antialiased flex flex-col")}>
         <ThemeProvider
