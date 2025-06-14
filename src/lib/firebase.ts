@@ -5,8 +5,8 @@ import { getFirestore, Firestore, collection, addDoc, serverTimestamp, doc, setD
 import { getAnalytics, Analytics } from 'firebase/analytics';
 import { getStorage, FirebaseStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'; // Added Storage functions
 
-// Your web app's Firebase configuration
-// IMPORTANT: These should be set in your .env file locally, and as secrets in App Hosting
+// Your web app's Firebase configuration is read from environment variables
+// These environment variables are populated by App Hosting from Google Secret Manager secrets
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -19,9 +19,15 @@ const firebaseConfig = {
 
 // For server-side logging during initialization, if needed for debugging in App Hosting
 if (typeof window === 'undefined') {
-  console.log('[Firebase Init] Attempting to initialize Firebase with Project ID:', firebaseConfig.projectId || 'PROJECT_ID_NOT_FOUND');
+  console.log('[Firebase Init] Server-side: Attempting to initialize Firebase.');
+  console.log('[Firebase Init] Server-side: Project ID from env (NEXT_PUBLIC_FIREBASE_PROJECT_ID):', firebaseConfig.projectId || 'PROJECT_ID_NOT_FOUND_IN_ENV');
   if (!firebaseConfig.apiKey) {
-    console.warn('[Firebase Init] Firebase API Key is missing or undefined in the environment.');
+    console.warn('[Firebase Init] Server-side: CRITICAL - Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is MISSING or UNDEFINED in the environment. This will cause Firebase initialization to fail.');
+  } else {
+    // console.log('[Firebase Init] Server-side: Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is present.'); // Optionally log masked key or just presence
+  }
+  if (!firebaseConfig.authDomain) {
+    console.warn('[Firebase Init] Server-side: Firebase Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) is MISSING or UNDEFINED.');
   }
 }
 
@@ -31,36 +37,53 @@ let analytics: Analytics | undefined;
 let storage: FirebaseStorage;
 
 if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-  if (typeof window !== 'undefined') {
-    // Initialize Analytics only on the client side
-    try {
+  try {
+    app = initializeApp(firebaseConfig);
+    if (typeof window !== 'undefined') {
+      // Initialize Analytics only on the client side
       if (firebaseConfig.measurementId) {
         analytics = getAnalytics(app);
       } else {
-        console.warn('[Firebase Init] Firebase Measurement ID is missing. Analytics will not be initialized.');
+        console.warn('[Firebase Init] Client-side: Firebase Measurement ID is missing. Analytics will not be initialized.');
       }
-    } catch (e) {
-      console.error("[Firebase Init] Failed to initialize Analytics:", e);
+    }
+    storage = getStorage(app);
+  } catch (error) {
+    console.error('[Firebase Init] CRITICAL: Failed to initialize Firebase app. This is likely due to missing or incorrect Firebase config environment variables.', error);
+    // Re-throw or handle critical failure appropriately for server-side
+    if (typeof window === 'undefined') {
+        throw new Error(`Server-side Firebase initialization failed: ${error}`);
     }
   }
-  storage = getStorage(app);
 } else {
   app = getApps()[0];
   if (typeof window !== 'undefined') {
-    // Ensure analytics is initialized if app already exists
     try {
       if (firebaseConfig.measurementId) {
         analytics = getAnalytics(app);
       }
     } catch (e) {
-      // console.error("[Firebase Init] Failed to re-initialize Analytics:", e); // Usually not needed to log this
+      // Non-critical if re-initializing analytics fails, but log it
+      console.warn("[Firebase Init] Client-side: Failed to re-initialize Analytics:", e);
     }
   }
-  storage = getStorage(app); // Ensure storage is initialized if app already exists
+  storage = getStorage(app); 
 }
 
-const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
+// Ensure app is defined before trying to use it for auth and db
+// This is more of a safeguard; the catch block above should handle init failure.
+if (!app!) {
+    console.error("[Firebase Init] CRITICAL: Firebase app object is not defined after initialization attempt. Cannot get Auth or Firestore instances.");
+    // For server-side, this would likely lead to a crash.
+    // For client-side, this would break any Firebase interaction.
+    // Throwing an error here if on server, or handling gracefully on client might be needed
+    // depending on how critical Firebase is to the initial render.
+    if (typeof window === 'undefined') {
+        throw new Error("Server-side Firebase app object is not defined. Firebase cannot be used.");
+    }
+}
+
+const auth: Auth = getAuth(app!);
+const db: Firestore = getFirestore(app!);
 
 export { app, auth, db, analytics, storage, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc, ref, uploadBytes, getDownloadURL, deleteObject, orderBy, limit, startAfter, documentId };
