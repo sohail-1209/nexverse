@@ -51,7 +51,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="NExVERSE" />
-        <link rel="apple-touch-icon" href="https://placehold.co/180x180/3B82F6/FFFFFF.png?text=NEx&font=michroma"/>
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png"/>
       </head>
       <body className={cn("min-h-screen bg-background font-body antialiased flex flex-col")}>
         <ThemeProvider
@@ -73,4 +73,3 @@ export default function RootLayout({
     </html>
   );
 }
-
