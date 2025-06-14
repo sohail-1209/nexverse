@@ -89,4 +89,3 @@ export const siteConfig: SiteConfig = {
     }
   ]
 };
-
