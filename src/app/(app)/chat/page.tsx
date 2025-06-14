@@ -49,7 +49,7 @@ interface AttachedPdf {
 const LOCAL_STORAGE_CHAT_KEY = 'nexverseChatMessages';
 const initialGreetingMessage: Message = { 
   id: 'ai-greeting', 
-  text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, send an image, or use voice input for a comprehensive interaction.", 
+  text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, send an image, or use voice input for a comprehensive interaction. I can also research online for you!", 
   sender: 'ai', 
   timestamp: new Date() 
 };
@@ -117,6 +117,11 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error("Error loading messages from localStorage:", error);
+      toast({
+        title: "Chat Load Error",
+        description: "Could not load previous chat history. Your browser's local storage might be unavailable or corrupted.",
+        variant: "destructive",
+      });
       setMessages([initialGreetingMessage]);
     }
   }, []);
@@ -125,19 +130,21 @@ export default function ChatPage() {
     try {
       if (typeof window !== 'undefined') {
         if (messages.length === 1 && messages[0].id === 'ai-greeting') {
-          // If only the greeting message exists, clear localStorage
           localStorage.removeItem(LOCAL_STORAGE_CHAT_KEY);
         } else if (messages.length > 0) {
-          // Otherwise, save the messages
           localStorage.setItem(LOCAL_STORAGE_CHAT_KEY, JSON.stringify(messages));
         } else {
-          // If messages array is empty (e.g., after a clear then delete greeting), clear storage
            localStorage.removeItem(LOCAL_STORAGE_CHAT_KEY);
-           setMessages([initialGreetingMessage]); // Ensure greeting is back if fully emptied
+           setMessages([initialGreetingMessage]); 
         }
       }
     } catch (error) {
       console.error("Error saving messages to localStorage:", error);
+      toast({
+        title: "Chat Save Error",
+        description: "Could not save chat history. Your messages might not persist if you refresh. This might be due to browser settings or storage limits.",
+        variant: "destructive",
+      });
     }
   }, [messages]);
 
@@ -631,7 +638,7 @@ export default function ChatPage() {
                         <XCircle className="h-4 w-4" />
                         </Button>
                     </div>
-                    <Image src={capturedImage} alt="Captured preview" width={500} height={281} className="rounded-md object-contain max-h-48 w-auto mx-auto" />
+                    <Image src={capturedImage} alt="Captured preview" width={500} height={281} className="rounded-md object-contain max-h-48 w-auto mx-auto" data-ai-hint="user image" />
                 </div>
             )}
 
@@ -717,3 +724,6 @@ export default function ChatPage() {
     </div>
   );
 }
+
+
+    
