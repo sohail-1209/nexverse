@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, MessageSquareIcon, User, Bot, Loader2, Paperclip, XCircle, FileText, Camera, ImageUp, AlertTriangle, Mic, MicOff } from 'lucide-react'; // Added Mic, MicOff
+import { Send, MessageSquareIcon, User, Bot, Loader2, Paperclip, XCircle, FileText, Camera, ImageUp, AlertTriangle, Mic, MicOff } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
 import { askGeneralQuestion, GeneralChatInput, GeneralChatOutput } from '@/ai/flows/general-chat-flow';
@@ -41,6 +41,12 @@ declare global {
   interface Window {
     SpeechRecognition: typeof SpeechRecognition;
     webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+  // Extend SpeechRecognitionEvent if not fully typed
+  interface SpeechRecognitionEvent extends Event {
+    results: SpeechRecognitionResultList;
+    resultIndex: number;
+    // Add other properties if needed based on usage
   }
 }
 
@@ -139,29 +145,27 @@ export default function ChatPage() {
     }
 
     const recognition = new SpeechRecognitionAPI();
-    recognition.continuous = false; // Capture a single utterance
-    recognition.interimResults = true; // Get interim results for faster feedback (optional)
-    recognition.lang = 'en-US'; // Set language
+    recognition.continuous = true; 
+    recognition.interimResults = false; 
+    recognition.lang = 'en-US';
 
     recognition.onstart = () => {
       setIsListening(true);
     };
 
-    recognition.onresult = (event) => {
-      let interimTranscript = '';
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let newTranscriptPart = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        // With interimResults = false, event.results[i].isFinal should typically be true.
+        // Each result object event.results[i] represents a speech segment.
+        newTranscriptPart += event.results[i][0].transcript + " "; // Add space for joining segments
       }
-      // Update input with final transcript, or interim if you prefer live updates
-      setInput(prevInput => prevInput + finalTranscript); // Append or replace as needed
+      if (newTranscriptPart.trim()) {
+        setInput((prevInput) => prevInput + newTranscriptPart.trimEnd()); 
+      }
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: any) => { // Using 'any' for event type for broader compatibility
       console.error('Speech recognition error', event.error);
       let errorMsg = 'An error occurred during speech recognition.';
       if (event.error === 'no-speech') errorMsg = 'No speech detected. Please try again.';
@@ -171,7 +175,7 @@ export default function ChatPage() {
         setMicPermission('denied');
       }
       toast({ title: 'Speech Error', description: errorMsg, variant: 'destructive' });
-      setIsListening(false);
+      setIsListening(false); // Ensure listening state is reset on error
     };
 
     recognition.onend = () => {
@@ -180,12 +184,14 @@ export default function ChatPage() {
 
     speechRecognitionRef.current = recognition;
 
-    // Check initial permission status
     navigator.permissions?.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
       setMicPermission(permissionStatus.state);
       permissionStatus.onchange = () => {
         setMicPermission(permissionStatus.state);
       };
+    }).catch(() => {
+        // Fallback or specific handling if permissions.query is not supported
+        console.warn("Permissions API for microphone not fully supported or errored.");
     });
 
   }, []);
@@ -320,13 +326,16 @@ export default function ChatPage() {
       }
       if (micPermission === 'prompt') {
         try {
-          await navigator.mediaDevices.getUserMedia({ audio: true }); // Request permission
-          setMicPermission('granted'); // If successful, update state
+          // Attempt to get user media to trigger permission prompt if speech API doesn't
+          // Some browsers handle this implicitly with recognition.start()
+          await navigator.mediaDevices.getUserMedia({ audio: true }); 
+          // If successful, or if permission already granted by prior interaction:
+          setMicPermission('granted'); 
           speechRecognitionRef.current?.start();
         } catch (err) {
           console.error("Mic permission error:", err);
-          setMicPermission('denied');
-          toast({ title: "Permission Denied", description: "Microphone access was not granted.", variant: "destructive" });
+          setMicPermission('denied'); // Assume denial if getUserMedia fails
+          toast({ title: "Permission Denied", description: "Microphone access was not granted or an error occurred.", variant: "destructive" });
           return;
         }
       } else if (micPermission === 'granted') {
@@ -418,9 +427,6 @@ export default function ChatPage() {
         setShowCameraView(false); 
         setIsCapturing(false);
       }
-      // Do not clear PDF here:
-      // removeAttachedPdf(); // <-- Removed this line
-      // if (fileInputRef.current) fileInputRef.current.value = ""; // <-- And this
     }
   };
 
@@ -633,4 +639,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
