@@ -71,6 +71,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([initialGreetingMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false); // New state variable
   
   const [attachedPdf, setAttachedPdf] = useState<AttachedPdf | null>(null);
   const [isPdfProcessing, setIsPdfProcessing] = useState(false);
@@ -97,6 +98,7 @@ export default function ChatPage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
   };
   
+  // Effect to load messages from localStorage on initial mount
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -104,16 +106,16 @@ export default function ChatPage() {
         if (savedMessagesRaw) {
           const parsedMessages: Message[] = JSON.parse(savedMessagesRaw).map((msg: Message) => ({
             ...msg,
-            timestamp: new Date(msg.timestamp),
+            timestamp: new Date(msg.timestamp), // Convert string timestamp back to Date
           }));
           if (parsedMessages.length > 0) {
             setMessages(parsedMessages);
           } else {
-             setMessages([initialGreetingMessage]);
+             // If localStorage had an empty array, default to greeting (though messages state is already this)
+             // setMessages([initialGreetingMessage]); // This line is not strictly needed if useState initializes correctly
           }
-        } else {
-          setMessages([initialGreetingMessage]);
         }
+        // If no saved messages, messages state remains [initialGreetingMessage] from useState
       }
     } catch (error) {
       console.error("Error loading messages from localStorage:", error);
@@ -122,19 +124,28 @@ export default function ChatPage() {
         description: "Could not load previous chat history. Your browser's local storage might be unavailable or corrupted.",
         variant: "destructive",
       });
-      setMessages([initialGreetingMessage]);
+      setMessages([initialGreetingMessage]); // Fallback to initial greeting on any error
+    } finally {
+      setIsHistoryLoaded(true); // Signal that loading attempt is complete
     }
-  }, []);
+  }, []); // Empty dependency array, runs once on mount
 
+  // Effect to save messages to localStorage whenever messages change, BUT only after initial history load
   useEffect(() => {
+    if (!isHistoryLoaded) {
+      // Don't save to localStorage until the initial load from localStorage is complete
+      return;
+    }
     try {
       if (typeof window !== 'undefined') {
         if (messages.length === 1 && messages[0].id === initialGreetingMessage.id) {
+          // If only the initial greeting message is present, clear the history from localStorage
           localStorage.removeItem(LOCAL_STORAGE_CHAT_KEY);
-        } else if (messages.length > 0) { // This condition implies messages is not empty and not just the greeting
+        } else if (messages.length > 0) { 
+          // Otherwise, save the current messages
           localStorage.setItem(LOCAL_STORAGE_CHAT_KEY, JSON.stringify(messages));
         }
-        // No explicit 'else' for messages.length === 0 is needed here if other logic prevents it
+        // No explicit 'else' for messages.length === 0, as other logic prevents this.
       }
     } catch (error) {
       console.error("Error saving messages to localStorage:", error);
@@ -144,7 +155,7 @@ export default function ChatPage() {
         variant: "destructive",
       });
     }
-  }, [messages]);
+  }, [messages, isHistoryLoaded]); // Add isHistoryLoaded to dependency array
 
 
   useEffect(() => {
@@ -462,7 +473,6 @@ export default function ChatPage() {
     setMessages(prevMessages => {
       const newMessages = prevMessages.filter(msg => msg.id !== messageId);
       if (newMessages.length === 0) {
-        // If deleting the message results in an empty list, reset to initial greeting
         return [initialGreetingMessage];
       }
       return newMessages;
@@ -551,7 +561,7 @@ export default function ChatPage() {
                       <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                     </Avatar>
                   )}
-                  {message.id !== 'ai-greeting' && ( // Prevent deleting the initial greeting message
+                  {message.id !== 'ai-greeting' && ( 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                          <Button
