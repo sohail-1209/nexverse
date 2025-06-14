@@ -7,25 +7,35 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/contexts/auth-context';
-import { Settings as SettingsIcon, Bell, Palette, ShieldCheck } from 'lucide-react';
-import { useState } from 'react';
+import { Settings as SettingsIcon, Bell, Palette, ShieldCheck, Moon, Sun } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { useTheme } from 'next-themes';
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  // TODO: Fetch user settings from Firestore or use local state with persistence
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false); // Example: manage theme
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  
+  // Ensure component is mounted before rendering theme-dependent UI
+  useEffect(() => setMounted(true), []);
 
+  // TODO: Fetch user notification settings from Firestore or use local state with persistence
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  
   const handleSaveChanges = () => {
-    // TODO: Implement logic to save settings to Firestore or localStorage
-    console.log('Settings saved:', { notificationsEnabled, darkModeEnabled });
+    // TODO: Implement logic to save notification settings to Firestore or localStorage
+    console.log('Settings saved:', { notificationsEnabled, currentTheme: theme });
     toast({ title: 'Settings Saved', description: 'Your preferences have been updated.' });
   };
 
-  if (!user) {
-    return <p>Loading user settings...</p>; // Or redirect
+  if (!user || !mounted) {
+    // Show a loader or placeholder until user and theme are ready
+    // This also prevents hydration mismatch for theme-dependent UI
+    return <div className="max-w-2xl mx-auto"><p>Loading settings...</p></div>; 
   }
+
+  const isDarkMode = theme === 'dark';
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
@@ -65,7 +75,6 @@ export default function SettingsPage() {
               <Palette className="h-5 w-5 text-primary" />
               <h3 className="text-lg font-semibold">Appearance</h3>
             </div>
-             {/* TODO: Implement actual dark mode toggle logic that updates theme */}
             <div className="flex items-center justify-between space-x-2">
               <Label htmlFor="dark-mode-switch" className="flex flex-col space-y-1">
                 <span>Dark Mode</span>
@@ -73,19 +82,22 @@ export default function SettingsPage() {
                   Toggle between light and dark themes for the application.
                 </span>
               </Label>
-              <Switch
-                id="dark-mode-switch"
-                checked={darkModeEnabled}
-                onCheckedChange={(checked) => {
-                    setDarkModeEnabled(checked);
-                    // document.documentElement.classList.toggle('dark', checked); // Basic example
-                    toast({ title: 'Theme Updated', description: `Dark mode ${checked ? 'enabled' : 'disabled'}. (UI may need refresh for full effect)`});
-                }}
-              />
+              <div className="flex items-center gap-2">
+                <Sun className={cn("h-5 w-5", !isDarkMode ? "text-primary" : "text-muted-foreground")} />
+                <Switch
+                  id="dark-mode-switch"
+                  checked={isDarkMode}
+                  onCheckedChange={(checked) => {
+                      setTheme(checked ? 'dark' : 'light');
+                      toast({ title: 'Theme Updated', description: `Switched to ${checked ? 'dark' : 'light'} mode.`});
+                  }}
+                />
+                <Moon className={cn("h-5 w-5", isDarkMode ? "text-primary" : "text-muted-foreground")} />
+              </div>
             </div>
           </div>
 
-          {/* Account Settings (Placeholder for more complex settings like password change) */}
+          {/* Account Settings */}
            <div className="space-y-4 p-4 border rounded-lg">
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-5 w-5 text-primary" />
@@ -94,9 +106,7 @@ export default function SettingsPage() {
             <p className="text-sm text-muted-foreground">
               For password changes and other account modifications, please visit your <Button variant="link" asChild className="p-0 h-auto"><a href="/profile">Profile Page</a></Button>.
             </p>
-            {/* Future settings like Two-Factor Authentication could go here */}
           </div>
-
 
           <Separator />
 
