@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,12 +49,17 @@ export function LoginForm() {
       toast({ title: 'Login Successful', description: 'Welcome back!' });
       router.push('/dashboard'); // Or intended URL
     } catch (error: any) {
-      console.error(error);
-      let errorMessage = 'An unexpected error occurred. Please try again.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        errorMessage = 'Invalid email or password. Please try again.';
+      const knownAuthErrorCodes = ['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential'];
+      if (error && typeof error.code === 'string' && knownAuthErrorCodes.includes(error.code)) {
+        // These are expected errors due to invalid user input.
+        // Log them with console.info to potentially avoid the Next.js error overlay for handled errors.
+        console.info(`Login attempt failed with code: ${error.code}`);
+        toast({ title: 'Login Failed', description: 'Invalid email or password. Please try again.', variant: 'destructive' });
+      } else {
+        // This is an unexpected error.
+        console.error('Login failed with an unexpected error:', error);
+        toast({ title: 'Login Failed', description: 'An unexpected error occurred. Please try again.', variant: 'destructive' });
       }
-      toast({ title: 'Login Failed', description: errorMessage, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -67,8 +73,9 @@ export function LoginForm() {
       toast({ title: 'Login Successful', description: 'Welcome!' });
       router.push('/dashboard');
     } catch (error: any) {
-      console.error(error);
-      toast({ title: 'Google Sign-In Failed', description: error.message, variant: 'destructive' });
+      // For Google Sign-In, typically display error.message as it can be more specific (e.g., popup closed)
+      console.error('Google Sign-In failed:', error);
+      toast({ title: 'Google Sign-In Failed', description: error.message || 'An unexpected error occurred.', variant: 'destructive' });
     } finally {
       setIsGoogleLoading(false);
     }
