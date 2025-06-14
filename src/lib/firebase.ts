@@ -7,10 +7,18 @@ import { getStorage, FirebaseStorage, ref, uploadBytes, getDownloadURL, deleteOb
 
 // Your web app's Firebase configuration is read from environment variables
 // These environment variables are populated by Firebase App Hosting from Google Secret Manager secrets.
-// CRITICAL: Ensure each NEXT_PUBLIC_FIREBASE_..._SECRET (e.g., NEXT_PUBLIC_FIREBASE_API_KEY_SECRET)
-// exists in Google Secret Manager for project 'nexverse-2cc70' and that the
-// App Hosting service account (firebase-app-hosting-compute@nexverse-2cc70.iam.gserviceaccount.com)
-// has the "Secret Manager Secret Accessor" role for EACH of these secrets.
+
+// Client-side logging to verify if environment variables are loaded
+if (typeof window !== 'undefined') {
+  console.log('[NExVERSE Firebase Client] Reading Firebase config from process.env:');
+  console.log(`[NExVERSE Firebase Client] API Key Loaded (NEXT_PUBLIC_FIREBASE_API_KEY): ${process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'YES' : 'NO - CRITICAL!'}`);
+  console.log(`[NExVERSE Firebase Client] Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN): ${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'NOT LOADED - CRITICAL FOR AUTH!'}`);
+  console.log(`[NExVERSE Firebase Client] Project ID (NEXT_PUBLIC_FIREBASE_PROJECT_ID): ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'NOT LOADED - CRITICAL!'}`);
+  console.log(`[NExVERSE Firebase Client] Storage Bucket (NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET): ${process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'NOT LOADED'}`);
+  console.log(`[NExVERSE Firebase Client] Messaging Sender ID (NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID): ${process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || 'NOT LOADED'}`);
+  console.log(`[NExVERSE Firebase Client] App ID (NEXT_PUBLIC_FIREBASE_APP_ID): ${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'NOT LOADED'}`);
+  console.log(`[NExVERSE Firebase Client] Measurement ID (NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID): ${process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'NOT LOADED (optional)'}`);
+}
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -22,30 +30,14 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Client-side logging to verify if environment variables are loaded
-if (typeof window !== 'undefined') {
-  console.log('[NExVERSE Firebase Client] Initializing with effective config:');
-  console.log(`[NExVERSE Firebase Client] API Key Loaded: ${firebaseConfig.apiKey ? 'YES' : 'NO - CRITICAL!'}`);
-  console.log(`[NExVERSE Firebase Client] Auth Domain: ${firebaseConfig.authDomain || 'NOT LOADED - CRITICAL FOR AUTH!'}`);
-  console.log(`[NExVERSE Firebase Client] Project ID: ${firebaseConfig.projectId || 'NOT LOADED - CRITICAL!'}`);
-  console.log(`[NExVERSE Firebase Client] Storage Bucket: ${firebaseConfig.storageBucket || 'NOT LOADED'}`);
-  console.log(`[NExVERSE Firebase Client] Messaging Sender ID: ${firebaseConfig.messagingSenderId || 'NOT LOADED'}`);
-  console.log(`[NExVERSE Firebase Client] App ID: ${firebaseConfig.appId || 'NOT LOADED'}`);
-  console.log(`[NExVERSE Firebase Client] Measurement ID: ${firebaseConfig.measurementId || 'NOT LOADED (optional)'}`);
-
-  if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
-    console.error('[NExVERSE Firebase Client] CRITICAL: One or more core Firebase config values are missing. This is likely due to misconfigured secrets in Google Secret Manager or missing IAM permissions for the App Hosting service account to access these secrets. Refer to apphosting.yaml for secret names.');
-  }
-}
-
 // Server-side logging for build/runtime in App Hosting
 if (typeof window === 'undefined') {
   console.log('[NExVERSE Firebase Server] Initializing Firebase. Checking for environment variables:');
-  console.log(`[NExVERSE Firebase Server] NEXT_PUBLIC_FIREBASE_API_KEY available: ${process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'Yes' : 'NO - CRITICAL!'}`);
-  console.log(`[NExVERSE Firebase Server] NEXT_PUBLIC_FIREBASE_PROJECT_ID available: ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'NO - CRITICAL!'}`);
-  console.log(`[NExVERSE Firebase Server] NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN available: ${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'NO - CRITICAL FOR AUTH!'}`);
-   if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY || !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || !process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) {
-    console.error('[NExVERSE Firebase Server] CRITICAL: Core Firebase config environment variables are missing server-side. Ensure secrets are correctly defined in apphosting.yaml and accessible by the App Hosting service account.');
+  console.log(`[NExVERSE Firebase Server] NEXT_PUBLIC_FIREBASE_API_KEY available: ${firebaseConfig.apiKey ? 'Yes' : 'NO - CRITICAL!'}`);
+  console.log(`[NExVERSE Firebase Server] NEXT_PUBLIC_FIREBASE_PROJECT_ID available: ${firebaseConfig.projectId || 'NO - CRITICAL!'}`);
+  console.log(`[NExVERSE Firebase Server] NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN available: ${firebaseConfig.authDomain || 'NO - CRITICAL FOR AUTH!'}`);
+   if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.authDomain) {
+    console.error('[NExVERSE Firebase Server] CRITICAL: Core Firebase config environment variables are missing server-side. Ensure secrets are correctly defined in Google Secret Manager, referenced in apphosting.yaml, and accessible by the App Hosting service account.');
   }
 }
 
@@ -57,10 +49,9 @@ let storageInstance: FirebaseStorage;
 if (!getApps().length) {
   try {
     if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-      const errorMsg = 'Firebase API Key or Project ID is missing. Cannot initialize Firebase. Ensure secrets are correctly set up in Google Secret Manager and apphosting.yaml.';
-      console.error(`[Firebase Init Error] ${errorMsg}`);
-      // For server-side, this might prevent startup. For client-side, features will fail.
-      // Avoid throwing here to let client-side potentially show a degraded experience or more specific UI errors.
+      const errorMsg = '[Firebase Init Error] Firebase API Key or Project ID is missing. Cannot initialize Firebase. Ensure secrets are correctly set up in Google Secret Manager, referenced in apphosting.yaml, and that the App Hosting service account has Secret Manager Secret Accessor permissions.';
+      console.error(errorMsg);
+       // This error during build or server-side rendering will likely lead to failures.
     }
     app = initializeApp(firebaseConfig);
     storageInstance = getStorage(app);
@@ -73,15 +64,14 @@ if (!getApps().length) {
     }
   } catch (error) {
     console.error('[Firebase Init] CRITICAL: Failed to initialize Firebase app. This is likely due to missing or incorrect Firebase config environment variables from secrets.', error);
-    // If running server-side (e.g., during build or server components), re-throw to make failure clear.
     if (typeof window === 'undefined') {
-        throw new Error(`Server-side Firebase initialization failed: ${error}. Ensure secrets are correctly configured.`);
+        // If server-side (build or runtime), this is a fatal issue.
+        throw new Error(`Server-side Firebase initialization failed: ${error}. Check Secret Manager configuration and IAM permissions for App Hosting service account.`);
     }
-    // For client-side, the app might be in a broken state, further errors will likely occur.
   }
 } else {
   app = getApps()[0];
-  storageInstance = getStorage(app); // Ensure storageInstance is assigned here too
+  storageInstance = getStorage(app);
   if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
     try {
       analytics = getAnalytics(app);
@@ -91,19 +81,10 @@ if (!getApps().length) {
   }
 }
 
-// Ensure app is defined before trying to use it for auth and db
-// This check is more for robustness; init errors should ideally be caught above.
-if (!app!) {
-    const criticalErrorMsg = "[Firebase Init] CRITICAL: Firebase app object is UNDEFINED after initialization attempt. Firebase services (Auth, Firestore, Storage) will not work. Check previous logs for errors related to missing config from secrets.";
-    console.error(criticalErrorMsg);
-    // If server-side, this is a fatal error for request handling or builds.
-    if (typeof window === 'undefined') {
-        throw new Error(criticalErrorMsg);
-    }
-}
-
-const auth: Auth = getAuth(app!);
-const db: Firestore = getFirestore(app!);
+// @ts-ignore - app might not be initialized if config is missing, leading to runtime errors.
+const auth: Auth = getAuth(app);
+// @ts-ignore - app might not be initialized
+const db: Firestore = getFirestore(app);
 
 // IMPORTANT: For `auth/unauthorized-domain` errors with OAuth providers (like Google Sign-In):
 // 1. Ensure your app's deployed domain (e.g., `nexverse-2cc70.web.app` or custom domain) is in "Authorized domains"
@@ -113,6 +94,7 @@ const db: Firestore = getFirestore(app!);
 // 3. The `authDomain` in your `firebaseConfig` (loaded from NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN_SECRET)
 //    MUST be `nexverse-2cc70.firebaseapp.com`.
 // 4. VERY IMPORTANT FOR FIREBASE STUDIO / CLOUD WORKSTATIONS: The specific domain of your development environment
-//    (e.g., `your-dev-instance.cloudworkstations.dev`) MUST ALSO be added to the "Authorized domains" list if you test OAuth from there.
+//    (e.g., your-dev-instance.cloudworkstations.dev, like '6000-firebase-studio-1749913046111.cluster-ikxjzjhlifcwuroomfkjrx437g.cloudworkstations.dev')
+//    MUST ALSO be added to the "Authorized domains" list in the Firebase Console if you test OAuth from there.
 
 export { app, auth, db, analytics, storageInstance as storage, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc, ref, uploadBytes, getDownloadURL, deleteObject, orderBy, limit, startAfter, documentId };
