@@ -129,14 +129,12 @@ export default function ChatPage() {
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
-        if (messages.length === 1 && messages[0].id === 'ai-greeting') {
+        if (messages.length === 1 && messages[0].id === initialGreetingMessage.id) {
           localStorage.removeItem(LOCAL_STORAGE_CHAT_KEY);
-        } else if (messages.length > 0) {
+        } else if (messages.length > 0) { // This condition implies messages is not empty and not just the greeting
           localStorage.setItem(LOCAL_STORAGE_CHAT_KEY, JSON.stringify(messages));
-        } else {
-           localStorage.removeItem(LOCAL_STORAGE_CHAT_KEY);
-           setMessages([initialGreetingMessage]); 
         }
+        // No explicit 'else' for messages.length === 0 is needed here if other logic prevents it
       }
     } catch (error) {
       console.error("Error saving messages to localStorage:", error);
@@ -461,7 +459,14 @@ export default function ChatPage() {
   };
 
   const handleDeleteMessage = (messageId: string) => {
-    setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
+    setMessages(prevMessages => {
+      const newMessages = prevMessages.filter(msg => msg.id !== messageId);
+      if (newMessages.length === 0) {
+        // If deleting the message results in an empty list, reset to initial greeting
+        return [initialGreetingMessage];
+      }
+      return newMessages;
+    });
     toast({ title: 'Message Deleted', description: 'The message has been removed.' });
   };
 
@@ -546,7 +551,7 @@ export default function ChatPage() {
                       <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                     </Avatar>
                   )}
-                  {message.id !== 'ai-greeting' && (
+                  {message.id !== 'ai-greeting' && ( // Prevent deleting the initial greeting message
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                          <Button
@@ -724,6 +729,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
-
-    
