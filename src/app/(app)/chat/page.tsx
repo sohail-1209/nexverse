@@ -156,16 +156,14 @@ export default function ChatPage() {
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let newTranscriptPart = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        // With interimResults = false, event.results[i].isFinal should typically be true.
-        // Each result object event.results[i] represents a speech segment.
-        newTranscriptPart += event.results[i][0].transcript + " "; // Add space for joining segments
+        newTranscriptPart += event.results[i][0].transcript + " "; 
       }
       if (newTranscriptPart.trim()) {
         setInput((prevInput) => prevInput + newTranscriptPart.trimEnd()); 
       }
     };
 
-    recognition.onerror = (event: any) => { // Using 'any' for event type for broader compatibility
+    recognition.onerror = (event: any) => { 
       console.error('Speech recognition error', event.error);
       let errorMsg = 'An error occurred during speech recognition.';
       if (event.error === 'no-speech') errorMsg = 'No speech detected. Please try again.';
@@ -175,7 +173,7 @@ export default function ChatPage() {
         setMicPermission('denied');
       }
       toast({ title: 'Speech Error', description: errorMsg, variant: 'destructive' });
-      setIsListening(false); // Ensure listening state is reset on error
+      setIsListening(false); 
     };
 
     recognition.onend = () => {
@@ -190,7 +188,6 @@ export default function ChatPage() {
         setMicPermission(permissionStatus.state);
       };
     }).catch(() => {
-        // Fallback or specific handling if permissions.query is not supported
         console.warn("Permissions API for microphone not fully supported or errored.");
     });
 
@@ -326,15 +323,12 @@ export default function ChatPage() {
       }
       if (micPermission === 'prompt') {
         try {
-          // Attempt to get user media to trigger permission prompt if speech API doesn't
-          // Some browsers handle this implicitly with recognition.start()
           await navigator.mediaDevices.getUserMedia({ audio: true }); 
-          // If successful, or if permission already granted by prior interaction:
           setMicPermission('granted'); 
           speechRecognitionRef.current?.start();
         } catch (err) {
           console.error("Mic permission error:", err);
-          setMicPermission('denied'); // Assume denial if getUserMedia fails
+          setMicPermission('denied'); 
           toast({ title: "Permission Denied", description: "Microphone access was not granted or an error occurred.", variant: "destructive" });
           return;
         }
@@ -397,17 +391,7 @@ export default function ChatPage() {
         aiResponseData = await askGeneralQuestion(aiInput);
       }
       
-      let aiText = aiResponseData.response;
-
-      // Attempt to parse aiText if it's a JSON string containing a 'response' field
-      try {
-        const parsedResponse = JSON.parse(aiText);
-        if (typeof parsedResponse === 'object' && parsedResponse !== null && typeof parsedResponse.response === 'string') {
-          aiText = parsedResponse.response;
-        }
-      } catch (parseError) {
-        // If parsing fails, aiText is likely already the direct string response, so do nothing.
-      }
+      const aiText = aiResponseData.response; // Should be a clean string from the server flow
 
       const aiMessage: Message = {
         id: `ai-${Date.now()}`,
@@ -437,7 +421,6 @@ export default function ChatPage() {
         setShowCameraView(false); 
         setIsCapturing(false);
       }
-      // Do not clear attachedPdf here, user might want to ask multiple questions about it
     }
   };
 

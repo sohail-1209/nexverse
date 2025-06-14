@@ -25,7 +25,7 @@ const ChatWithImageInputSchema = z.object({
 export type ChatWithImageInput = z.infer<typeof ChatWithImageInputSchema>;
 
 const ChatWithImageOutputSchema = z.object({
-  response: z.string().describe('The final textual answer to be shown directly to the user. This should be a direct reply to the query, informed by any provided context (image, PDF, web search).'),
+  response: z.string().describe('The final textual answer to be shown directly to the user. This should be a direct reply to the query, informed by any provided context (image, PDF, web search). Do not wrap this response in any additional JSON structure.'),
 });
 export type ChatWithImageOutput = z.infer<typeof ChatWithImageOutputSchema>;
 
@@ -52,7 +52,7 @@ You have access to a 'webSearchTool'. Use this tool PROACTIVELY whenever you nee
 - Specific details that are typically found through web searches (e.g., specific URLs, detailed product specs, obscure facts).
 - Verification for any facts or figures if you are uncertain.
 
-When you use the webSearchTool, you MUST clearly state in your response that you are using information obtained from a web search and briefly cite the source or query if appropriate (e.g., "According to a web search for 'X', ...").
+When you use the webSearchTool, you MUST use the information returned by the tool to formulate your response and clearly state that you are using information obtained from a web search, citing the source or query if appropriate (e.g., "According to a web search for 'X', ..."). If the tool provides a date for the information, please include that date in your response.
 
 User's query: {{{query}}}
 
@@ -90,17 +90,25 @@ const chatWithImageFlow = ai.defineFlow(
         console.warn('Genkit chatWithImageFlow: Prompt did not return a valid string in the response field. Output:', JSON.stringify(output));
         return { response: "Sorry, I wasn't able to generate a clear response. Please try a different query." };
       }
-      // Check if the response itself is a JSON string (schema)
+      
+      let responseText = output.response;
       try {
-        const parsedMaybeSchema = JSON.parse(output.response);
-        if (parsedMaybeSchema && parsedMaybeSchema.properties && parsedMaybeSchema.properties.response && parsedMaybeSchema.properties.response.description && typeof parsedMaybeSchema.properties.response.description === 'string') {
-          console.warn("Genkit chatWithImageFlow: Model returned schema in response field. Extracting description.");
-          return { response: parsedMaybeSchema.properties.response.description };
+        const parsedJson = JSON.parse(responseText);
+        if (typeof parsedJson === 'object' && parsedJson !== null) {
+          if (typeof parsedJson.response === 'string') {
+            // Case: Model returned "{\"response\":\"actual message\"}"
+            responseText = parsedJson.response;
+          } else if (parsedJson.properties && parsedJson.properties.response && typeof parsedJson.properties.response.description === 'string') {
+            // Case: Model returned schema definition "{\"properties\":{\"response\":{\"description\":\"actual message\"}}}"
+            console.warn("Genkit chatWithImageFlow: Model returned schema in response field. Extracting description.");
+            responseText = parsedJson.properties.response.description;
+          }
         }
       } catch (e) {
-        // Not a JSON string, or not the schema string we expected. Proceed normally.
+        // Parsing failed, responseText is likely already the plain string answer.
       }
-      return output;
+      return { response: responseText };
+
     } catch (error) {
       console.error('Error in chatWithImageFlow during prompt execution:', error);
       return { response: "Sorry, an internal error occurred while processing your request. Please try again later." };
