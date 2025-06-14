@@ -9,7 +9,7 @@ import { getStorage, FirebaseStorage, ref, uploadBytes, getDownloadURL, deleteOb
 // These environment variables are populated by App Hosting from Google Secret Manager secrets
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, // IMPORTANT: Ensure this domain and your app's actual deployed domain are in Firebase Console > Authentication > Sign-in method > Authorized domains.
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, // IMPORTANT: Ensure this domain and your app's actual deployed domain are in Firebase Console > Authentication > Sign-in method > Authorized domains. For Google Sign-In (OAuth), this specific authDomain should be [YOUR_PROJECT_ID].firebaseapp.com
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
@@ -26,6 +26,19 @@ if (typeof window === 'undefined') {
   }
   if (!firebaseConfig.authDomain) {
     console.warn('[Firebase Init] Server-side: Firebase Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) is MISSING or UNDEFINED. Also verify this domain is in your Firebase project\'s "Authorized domains" list for Authentication.');
+  }
+} else {
+  // Client-side specific logging for debugging Firebase config
+  console.log('[NExVERSE Firebase Debug Client] Initializing Firebase with effective config:');
+  console.log(`[NExVERSE Firebase Debug Client] Project ID: ${firebaseConfig.projectId}`);
+  console.log(`[NExVERSE Firebase Debug Client] Auth Domain: ${firebaseConfig.authDomain}`);
+  if (!firebaseConfig.apiKey) {
+    console.error('[NExVERSE Firebase Debug Client] CRITICAL: Firebase API Key is MISSING or UNDEFINED in the client-side config.');
+  } else {
+    // console.log(`[NExVERSE Firebase Debug Client] API Key: ${firebaseConfig.apiKey ? 'Present' : 'MISSING'}`); // Optionally log presence, not the key itself for security
+  }
+  if (!firebaseConfig.authDomain) {
+    console.error('[NExVERSE Firebase Debug Client] CRITICAL: Firebase Auth Domain is MISSING or UNDEFINED in the client-side config.');
   }
 }
 
@@ -85,3 +98,4 @@ const auth: Auth = getAuth(app!);
 const db: Firestore = getFirestore(app!);
 
 export { app, auth, db, analytics, storage, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc, ref, uploadBytes, getDownloadURL, deleteObject, orderBy, limit, startAfter, documentId };
+

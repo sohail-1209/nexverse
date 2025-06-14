@@ -71,8 +71,12 @@ export function LoginForm() {
     try {
       // For OAuth providers like Google Sign-In, ensure your Firebase project's
       // "Authorized domains" list in the Firebase Console (Authentication > Sign-in method)
-      // includes both your app's main domain AND the `[PROJECT_ID].firebaseapp.com` domain.
-      // Failure to include the latter can cause 'auth/unauthorized-domain' errors specifically for OAuth.
+      // includes BOTH:
+      // 1. Your app's main deployed domain (e.g., `[YOUR_PROJECT_ID].web.app` or your custom domain).
+      // 2. The Firebase-specific OAuth redirect domain: `[YOUR_PROJECT_ID].firebaseapp.com`.
+      //    For this project, `nexverse-2cc70.firebaseapp.com` is crucial.
+      // Also, ensure `firebaseConfig.authDomain` in `src/lib/firebase.ts` (populated by secrets via environment variables)
+      // is correctly set to `nexverse-2cc70.firebaseapp.com` for the `signInWithPopup` to work as expected.
       await signInWithPopup(auth, provider);
       toast({ title: 'Login Successful', description: 'Welcome!' });
       router.push('/dashboard');
@@ -81,7 +85,7 @@ export function LoginForm() {
       console.error('Google Sign-In failed:', error);
       let errorMessage = error.message || 'An unexpected error occurred.';
       if (error.code === 'auth/unauthorized-domain') {
-        errorMessage = "This app's domain is not authorized for Google Sign-In. Please check Firebase console settings.";
+        errorMessage = "This app's domain, or the Firebase OAuth redirect domain, is not authorized. Please check Firebase console settings under Authentication > Sign-in method > Authorized domains. Ensure both your app's main URL AND '[YOUR_PROJECT_ID].firebaseapp.com' (e.g., nexverse-2cc70.firebaseapp.com) are listed.";
       }
       toast({ title: 'Google Sign-In Failed', description: errorMessage, variant: 'destructive' });
     } finally {
@@ -145,3 +149,4 @@ export function LoginForm() {
     </Form>
   );
 }
+
