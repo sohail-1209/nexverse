@@ -157,7 +157,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh_-_theme(spacing.32)_-_theme(spacing.16))] md:h-[calc(100vh_-_theme(spacing.24)_-_theme(spacing.16))]">
+    <div className="flex flex-col h-full"> {/* Changed height calculation */}
       <Card className="flex-grow flex flex-col shadow-xl">
         <CardHeader className="border-b">
           <div className="flex items-center gap-3">
