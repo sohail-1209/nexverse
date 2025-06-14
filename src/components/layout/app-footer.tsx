@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from "next/link";
@@ -10,7 +11,7 @@ export default function AppFooter() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
           <div className="flex items-center space-x-2">
-             <SiteLogo size={24} />
+             <SiteLogo size={32} />
             <p className="text-sm text-muted-foreground font-headline">
               &copy; {currentYear} NExVERSE. All rights reserved.
             </p>

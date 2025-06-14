@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 interface SiteLogoProps {
   size?: number;
@@ -12,8 +13,8 @@ export function SiteLogo({ size = 32, className }: SiteLogoProps) {
       alt="NExVERSE Logo"
       width={size}
       height={size}
-      className={className}
-      priority // Add priority if it's LCP, good for header logo
+      className={cn("rounded-full border-2 border-muted", className)}
+      priority 
     />
   );
 }
