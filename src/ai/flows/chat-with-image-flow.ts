@@ -32,11 +32,30 @@ export async function askQuestionWithImage(input: ChatWithImageInput): Promise<C
   return chatWithImageFlow(input);
 }
 
+const commonSafetySettings = [
+  {
+    category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+    threshold: 'BLOCK_ONLY_HIGH',
+  },
+  {
+    category: 'HARM_CATEGORY_HATE_SPEECH',
+    threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+  },
+  {
+    category: 'HARM_CATEGORY_HARASSMENT',
+    threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+  },
+  {
+    category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+    threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+  },
+];
+
 const prompt = ai.definePrompt({
   name: 'chatWithImagePrompt',
   input: {schema: ChatWithImageInputSchema},
   output: {schema: ChatWithImageOutputSchema},
-  prompt: `You are a helpful AI Assistant. Respond to the user's query.
+  prompt: `You are a helpful AI Assistant. Respond to the user's query in a comprehensive and informative way.
 
 User's query: {{{query}}}
 
@@ -53,8 +72,11 @@ The user has also provided the following text content from a PDF document. Use t
 {{/if}}
 
 Provide a helpful and concise response.
-If the query is outside your scope, or if you cannot process the provided image/PDF content effectively with the query, politely state that you cannot assist with that specific request or that part of the request.
+If the query is outside your scope due to ethical or safety limitations, or if you cannot process the provided image/PDF content effectively with the query, politely state that you cannot assist with that specific request or that part of the request. However, aim to be as helpful as possible within safe boundaries.
 `,
+  config: {
+    safetySettings: commonSafetySettings,
+  },
 });
 
 const chatWithImageFlow = ai.defineFlow(
