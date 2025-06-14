@@ -36,35 +36,54 @@ export const webSearchTool = ai.defineTool(
   },
   async (input) => {
     console.log(`[WebSearchTool] Received query: ${input.query}`);
+    const currentDate = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    const currentTime = new Date().toLocaleTimeString();
 
     // Simulate API call and search results
     // In a real application, you would call a search API here.
-    if (input.query.toLowerCase().includes('latest news')) {
+
+    const lowerCaseQuery = input.query.toLowerCase();
+
+    if (lowerCaseQuery.includes('latest news')) {
       return {
         message: 'Simulated search results for "latest news":',
         results: [
           {
             title: 'Simulated News: AI Makes Breakthrough in Pancake Flipping',
             link: 'https://example.com/news/ai-pancakes',
-            snippet: 'Researchers today announced a new AI model capable of flipping pancakes with superhuman precision, potentially revolutionizing breakfast as we know it.',
+            snippet: `Researchers today (${currentDate}) announced a new AI model capable of flipping pancakes with superhuman precision, potentially revolutionizing breakfast as we know it.`,
           },
           {
             title: 'Simulated Update: Weather Patterns Shifting Globally',
             link: 'https://example.com/news/weather-shift',
-            snippet: 'A new report indicates unexpected shifts in global weather patterns, with experts urging further study and preparation for changing climates.',
+            snippet: `A new report published on ${currentDate} indicates unexpected shifts in global weather patterns, with experts urging further study and preparation for changing climates.`,
           },
         ],
       };
     }
 
-    if (input.query.toLowerCase().includes('current time')) {
+    if (lowerCaseQuery.includes('usd to inr') || lowerCaseQuery.includes('dollar to inr') || (lowerCaseQuery.includes('currency') && lowerCaseQuery.includes('inr'))) {
+      const simulatedRate = (83.00 + Math.random() * 1.0).toFixed(2); // Simulate a rate around 83-84
+      return {
+        message: `Simulated currency exchange rate for "${input.query}" as of ${currentDate}:`,
+        results: [
+          {
+            title: `USD to INR Exchange Rate - ${currentDate}`,
+            link: `https://example.com/currency/usd-inr?date=${currentDate}`,
+            snippet: `As of ${currentDate}, the simulated exchange rate is approximately 1 USD = ${simulatedRate} INR. This is a simulated value for demonstration.`,
+          },
+        ],
+      };
+    }
+
+    if (lowerCaseQuery.includes('current time')) {
          return {
             message: 'Simulated information based on your query:',
             results: [
                 {
                     title: 'Current Time Information',
                     link: 'https://example.com/time',
-                    snippet: `The current time is approximately ${new Date().toLocaleTimeString()}. This is a simulated response.`,
+                    snippet: `The current time is approximately ${currentTime} on ${currentDate}. This is a simulated response.`,
                 },
             ],
         };
@@ -72,19 +91,20 @@ export const webSearchTool = ai.defineTool(
     
     // Generic simulated response
     return {
-      message: `Simulated search results for "${input.query}":`,
+      message: `Simulated search results for "${input.query}" (as of ${currentDate}):`,
       results: [
         {
           title: `Simulated Result for ${input.query}`,
-          link: `https://example.com/search?q=${encodeURIComponent(input.query)}`,
-          snippet: `This is a simulated search result snippet for your query: "${input.query}". In a real application, this would contain relevant information found online.`,
+          link: `https://example.com/search?q=${encodeURIComponent(input.query)}&date=${currentDate}`,
+          snippet: `This is a simulated search result snippet for your query: "${input.query}". Information retrieved on ${currentDate}. In a real application, this would contain relevant information found online.`,
         },
         {
             title: `Another Simulated Finding for ${input.query}`,
-            link: `https://example.com/search-more?q=${encodeURIComponent(input.query)}`,
-            snippet: `More details could be found here if this were a live web search. The AI is using this placeholder data to formulate a response.`,
+            link: `https://example.com/search-more?q=${encodeURIComponent(input.query)}&date=${currentDate}`,
+            snippet: `More details could be found here if this were a live web search on ${currentDate}. The AI is using this placeholder data to formulate a response.`,
         }
       ],
     };
   }
 );
+
