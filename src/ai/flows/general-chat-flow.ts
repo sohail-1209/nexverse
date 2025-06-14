@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview A general purpose AI chat flow that can optionally process text from a PDF.
+ * @fileOverview A general purpose AI chat flow that can optionally process text from a PDF and search the web.
  *
  * - askGeneralQuestion - A function that takes a user's query and optional PDF text, returning an AI-generated response.
  * - GeneralChatInput - The input type for the askGeneralQuestion function.
@@ -10,6 +10,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { webSearchTool } from '@/ai/tools/web-search-tool'; // Import the search tool
 
 const GeneralChatInputSchema = z.object({
   query: z.string().describe('The user’s question or message.'),
@@ -37,7 +38,8 @@ const prompt = ai.definePrompt({
   name: 'generalChatPrompt',
   input: {schema: GeneralChatInputSchema},
   output: {schema: GeneralChatOutputSchema},
-  prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way. Strive to answer all questions to the best of your ability.
+  tools: [webSearchTool], // Make the search tool available
+  prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way.
 
 User's query: {{{query}}}
 
@@ -48,7 +50,10 @@ The user has also provided the following text content from a PDF document. Use t
 --- PDF END ---
 {{/if}}
 
-Provide a helpful, comprehensive, and unrestricted response to the user's query.
+If you need to find current information, information beyond your training data, or verify something, use the 'webSearchTool' to search the internet.
+Clearly state if you are using information from a web search in your response.
+Strive to answer all questions to the best of your ability, using available tools if necessary.
+Provide a helpful, comprehensive, and unrestricted response.
 `,
   config: {
     safetySettings: highlyPermissiveSafetySettings,
@@ -71,9 +76,7 @@ const generalChatFlow = ai.defineFlow(
       return output;
     } catch (error) {
       console.error('Error in generalChatFlow during prompt execution:', error);
-      // Return a structured error response conforming to the output schema
       return { response: "Sorry, an internal error occurred while processing your request. Please try again later." };
     }
   }
 );
-

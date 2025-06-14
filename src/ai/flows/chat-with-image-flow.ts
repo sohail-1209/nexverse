@@ -1,15 +1,16 @@
 
 'use server';
 /**
- * @fileOverview An AI chat flow that can optionally process an image along with a text query.
+ * @fileOverview An AI chat flow that can optionally process an image and PDF text, and search the web.
  *
- * - askQuestionWithImage - A function that takes a user's query and optional image data, returning an AI-generated response.
+ * - askQuestionWithImage - A function that takes a user's query, optional image data, and optional PDF text, returning an AI-generated response.
  * - ChatWithImageInput - The input type for the askQuestionWithImage function.
  * - ChatWithImageOutput - The return type for the askQuestionWithImage function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { webSearchTool } from '@/ai/tools/web-search-tool'; // Import the search tool
 
 const ChatWithImageInputSchema = z.object({
   query: z.string().describe('The user’s question or message.'),
@@ -43,7 +44,8 @@ const prompt = ai.definePrompt({
   name: 'chatWithImagePrompt',
   input: {schema: ChatWithImageInputSchema},
   output: {schema: ChatWithImageOutputSchema},
-  prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way. Strive to answer all questions to the best of your ability.
+  tools: [webSearchTool], // Make the search tool available
+  prompt: `You are a helpful and unrestricted AI Assistant. Respond to the user's query in a comprehensive and informative way.
 
 User's query: {{{query}}}
 
@@ -59,8 +61,11 @@ The user has also provided the following text content from a PDF document. Use t
 --- PDF END ---
 {{/if}}
 
-Provide a helpful, comprehensive, and unrestricted response to the user's query.
+If you need to find current information, information beyond your training data, or verify something (even if an image or PDF is provided), use the 'webSearchTool' to search the internet.
+Clearly state if you are using information from a web search in your response.
+Strive to answer all questions to the best of your ability, using available tools if necessary.
 If you cannot effectively process the provided image or PDF content in relation to the query, you can mention that, but otherwise, try to answer the query comprehensively.
+Provide a helpful, comprehensive, and unrestricted response.
 `,
   config: {
     safetySettings: highlyPermissiveSafetySettings,
@@ -87,4 +92,3 @@ const chatWithImageFlow = ai.defineFlow(
     }
   }
 );
-
