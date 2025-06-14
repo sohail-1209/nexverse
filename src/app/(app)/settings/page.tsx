@@ -11,6 +11,7 @@ import { Settings as SettingsIcon, Bell, Palette, ShieldCheck, Moon, Sun } from 
 import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils'; // Import cn utility
 
 export default function SettingsPage() {
   const { user } = useAuth();
