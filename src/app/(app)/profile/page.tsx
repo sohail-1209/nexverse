@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/contexts/auth-context';
@@ -8,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useState, useEffect } from 'react';
-import { updateProfile, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth'; // Added reauth and EmailAuthProvider
-import { auth } from '@/lib/firebase';
+import { updateProfile, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { auth, db, doc, updateDoc, getDoc } from '@/lib/firebase'; // Added db, doc, updateDoc, getDoc
 import { toast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -19,7 +20,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState(''); // For re-authentication
+  const [currentPassword, setCurrentPassword] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -39,9 +40,15 @@ export default function ProfilePage() {
     setIsLoading(true);
 
     try {
-      // Update display name
+      // Update display name in Firebase Auth
       if (displayName !== user.displayName) {
         await updateProfile(user, { displayName });
+        // Also update in Firestore 'users' collection
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+            await updateDoc(userDocRef, { displayName: displayName });
+        }
       }
 
       // Update email if changed - requires re-authentication
@@ -49,7 +56,14 @@ export default function ProfilePage() {
         const credential = EmailAuthProvider.credential(user.email!, currentPassword);
         await reauthenticateWithCredential(user, credential);
         await updateEmail(user, email);
-        setCurrentPassword(''); // Clear password after successful update
+
+        // Also update email in Firestore 'users' collection
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+            await updateDoc(userDocRef, { email: email });
+        }
+        setCurrentPassword(''); 
       } else if (email !== user.email && !currentPassword) {
          toast({
           title: 'Password Required',
@@ -96,8 +110,8 @@ export default function ProfilePage() {
               <AvatarFallback className="text-3xl">{getInitials(user.displayName)}</AvatarFallback>
             </Avatar>
             <div>
-              <h2 className="text-xl font-semibold">{user.displayName || 'N/A'}</h2>
-              <p className="text-sm text-muted-foreground">{user.email}</p>
+              <h2 className="text-xl font-semibold">{displayName || user.displayName || 'N/A'}</h2>
+              <p className="text-sm text-muted-foreground">{email || user.email}</p>
             </div>
           </div>
 
@@ -173,3 +187,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

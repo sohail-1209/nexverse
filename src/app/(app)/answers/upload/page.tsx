@@ -29,9 +29,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, UploadCloud } from 'lucide-react';
-// TODO: import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-// TODO: import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-// TODO: import { db, storage } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ACCEPTED_FILE_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
@@ -61,7 +61,7 @@ const answerSchema = z.object({
 
 type AnswerFormValues = z.infer<typeof answerSchema>;
 
-// TODO: Fetch subjects from Firestore or use a predefined list
+// TODO: Fetch subjects from Firestore or use a predefined list that includes names
 const mockSubjects = [
   { id: 'physics', name: 'Physics' },
   { id: 'chemistry', name: 'Chemistry' },
@@ -99,42 +99,42 @@ export default function UploadAnswerPage() {
     }
     setIsLoading(true);
     try {
-      // let fileURL = null;
-      // if (values.file && values.file.length > 0) {
-      //   const fileToUpload = values.file[0];
-      //   const storageRef = ref(storage, `answers/${user.uid}/${Date.now()}_${fileToUpload.name}`);
-      //   await uploadBytes(storageRef, fileToUpload);
-      //   fileURL = await getDownloadURL(storageRef);
-      // }
+      let fileURL = null;
+      let fileName = null; // To store the file name for potential future deletion reference
 
-      // const answerData = {
-      //   title: values.title,
-      //   subjectId: values.subject, // Assuming 'subject' value from form is the ID
-      //   category: values.category,
-      //   type: values.type,
-      //   content: values.content,
-      //   tags: values.tags?.split(',').map(tag => tag.trim()).filter(tag => tag) || [],
-      //   userId: user.uid,
-      //   authorName: user.displayName || user.email,
-      //   authorAvatar: user.photoURL || null,
-      //   createdAt: serverTimestamp(),
-      //   isVerified: false,
-      //   views: 0,
-      //   likes: 0,
-      //   fileURL: fileURL, // Add the file URL here
-      // };
-      // const docRef = await addDoc(collection(db, 'answers'), answerData);
-      
-      console.log('Form submitted:', values);
       if (values.file && values.file.length > 0) {
-        console.log('File to upload:', values.file[0].name, 'Size:', values.file[0].size, 'Type:', values.file[0].type);
-        // TODO: Implement actual file upload to Firebase Storage here
+        const fileToUpload = values.file[0];
+        fileName = `${Date.now()}_${fileToUpload.name}`; // Store unique file name
+        const storageRef = ref(storage, `answers/${user.uid}/${fileName}`);
+        await uploadBytes(storageRef, fileToUpload);
+        fileURL = await getDownloadURL(storageRef);
       }
-      await new Promise(resolve => setTimeout(resolve, 1500));
 
+      const selectedSubject = mockSubjects.find(s => s.id === values.subject);
+
+      const answerData = {
+        title: values.title,
+        subjectId: values.subject,
+        subjectName: selectedSubject ? selectedSubject.name : 'Unknown Subject', // Store subject name
+        category: values.category,
+        type: values.type,
+        content: values.content,
+        tags: values.tags?.split(',').map(tag => tag.trim()).filter(tag => tag) || [],
+        userId: user.uid,
+        authorName: user.displayName || user.email,
+        authorAvatar: user.photoURL || null,
+        createdAt: serverTimestamp(),
+        isVerified: false, // Default to unverified
+        views: 0,
+        likes: 0,
+        fileURL: fileURL,
+        fileName: fileName, // Store file name if uploaded
+      };
+      
+      const docRef = await addDoc(collection(db, 'answers'), answerData);
+      
       toast({ title: 'Answer Uploaded!', description: 'Your answer has been submitted successfully.' });
-      // router.push(`/answers/${docRef.id}`);
-      router.push('/dashboard'); 
+      router.push(`/answers/${docRef.id}?subject=${answerData.subjectId}`); 
     } catch (error) {
       console.error('Upload failed:', error);
       toast({ title: 'Upload Failed', description: 'Could not submit your answer. Please try again.', variant: 'destructive' });
@@ -290,7 +290,7 @@ export default function UploadAnswerPage() {
               )}
             />
 
-            <Button type="submit" className="w-full md:w-auto" disabled={isLoading}>
+            <Button type="submit" className="w-full md:w-auto" disabled={isLoading || !user}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Answer
             </Button>

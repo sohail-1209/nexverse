@@ -4,30 +4,23 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { BookmarkX, Eye, ThumbsUp, Trash2, BadgeCheck } from 'lucide-react';
+import { BookmarkX, Eye, ThumbsUp, Trash2, BadgeCheck, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { db, collection, query, where, getDocs, deleteDoc, doc, orderBy as fbOrderBy } from '@/lib/firebase'; // Added Firestore imports
 
-// TODO: Replace with actual bookmarked answer data fetched from Firestore for the current user
 interface BookmarkedAnswer {
-  id: string;
+  id: string; // This will be the answerId (document ID from the bookmarks subcollection)
   title: string;
   subjectId: string;
-  subjectName: string; // e.g., "Physics"
+  subjectName?: string;
   category: string;
-  type: string; // e.g., "5-mark"
+  type: string;
   isVerified: boolean;
-  snippet?: string; // Short preview of the answer
+  // snippet?: string; // We can generate this or fetch full answer later if needed
 }
-
-const mockBookmarkedAnswers: BookmarkedAnswer[] = [
-  { id: 'phys001', title: 'Newton\'s First Law Explained', subjectId: 'physics', subjectName: 'Physics', category: 'Conceptual', type: '5-mark', isVerified: true, snippet: "Newton's First Law of Motion, also known as the law of inertia, states that an object at rest will stay at rest..." },
-  { id: 'chem001', title: 'Balancing Redox Reactions', subjectId: 'chemistry', subjectName: 'Chemistry', category: 'Problem-Solving', type: '10-mark', isVerified: true, snippet: "Redox reactions involve the transfer of electrons. Balancing them requires..." },
-  { id: 'math001', title: 'Integration by Parts Example', subjectId: 'mathematics', subjectName: 'Mathematics', category: 'Example', type: '5-mark', isVerified: false, snippet: "Integration by parts is a technique based on the product rule for differentiation..." },
-];
 
 export default function BookmarksPage() {
   const { user } = useAuth();
@@ -35,18 +28,44 @@ export default function BookmarksPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      // TODO: Fetch user's bookmarked answers from Firestore
-      // For now, use mock data
-      setBookmarks(mockBookmarkedAnswers);
-    }
-    setIsLoading(false);
+    const fetchBookmarks = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const bookmarksCollectionRef = collection(db, `users/${user.uid}/bookmarks`);
+        const q = query(bookmarksCollectionRef, fbOrderBy('bookmarkedAt', 'desc'));
+        const querySnapshot = await getDocs(q);
+        const fetchedBookmarks: BookmarkedAnswer[] = [];
+        querySnapshot.forEach((doc) => {
+          // The doc.id here is the answerId
+          fetchedBookmarks.push({ id: doc.id, ...doc.data() } as BookmarkedAnswer);
+        });
+        setBookmarks(fetchedBookmarks);
+      } catch (error) {
+        console.error("Error fetching bookmarks:", error);
+        toast({ title: "Error", description: "Could not fetch your bookmarks.", variant: "destructive" });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBookmarks();
   }, [user]);
 
-  const handleRemoveBookmark = (answerId: string, answerTitle: string) => {
-    // TODO: Implement logic to remove bookmark from Firestore
-    setBookmarks(prev => prev.filter(b => b.id !== answerId));
-    toast({ title: 'Bookmark Removed', description: `"${answerTitle}" removed from your bookmarks.` });
+  const handleRemoveBookmark = async (answerId: string, answerTitle: string) => {
+    if (!user) return;
+    try {
+      const bookmarkDocRef = doc(db, `users/${user.uid}/bookmarks`, answerId);
+      await deleteDoc(bookmarkDocRef);
+      setBookmarks(prev => prev.filter(b => b.id !== answerId));
+      toast({ title: 'Bookmark Removed', description: `"${answerTitle}" removed from your bookmarks.` });
+    } catch (error) {
+      console.error("Error removing bookmark:", error);
+      toast({ title: "Error", description: "Could not remove bookmark.", variant: "destructive" });
+    }
   };
 
   if (isLoading) {
@@ -54,8 +73,19 @@ export default function BookmarksPage() {
   }
 
   if (!user) {
-    // This should ideally be caught by AuthGuard, but as a fallback
-    return <p className="text-center text-muted-foreground">Please log in to see your bookmarks.</p>;
+    return (
+        <Card className="text-center">
+            <CardHeader>
+                <CardTitle>Login Required</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground mb-4">Please log in to see your bookmarks.</p>
+                <Button asChild>
+                    <Link href="/auth/login">Log In</Link>
+                </Button>
+            </CardContent>
+        </Card>
+    );
   }
 
   return (
@@ -74,13 +104,15 @@ export default function BookmarksPage() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="font-headline text-xl mb-1">{answer.title}</CardTitle>
+                     <Link href={`/answers/${answer.id}?subject=${answer.subjectId}`}>
+                        <CardTitle className="font-headline text-xl mb-1 hover:text-primary transition-colors">{answer.title}</CardTitle>
+                     </Link>
                     <div className="flex flex-wrap gap-2 items-center text-sm text-muted-foreground">
-                      <span>{answer.subjectName}</span>
+                      <span>{answer.subjectName || answer.subjectId.replace('_', ' ')}</span>
                       <span className="text-xs">&bull;</span>
-                      <span>{answer.category}</span>
+                      <span>{answer.category?.replace('_', ' ')}</span>
                       <span className="text-xs">&bull;</span>
-                      <span>{answer.type}</span>
+                      <span>{answer.type?.replace('_', ' ')}</span>
                       {answer.isVerified && <Badge variant="default" className="bg-accent text-accent-foreground ml-2 flex items-center gap-1"><BadgeCheck className="h-4 w-4" />Verified</Badge>}
                     </div>
                   </div>
@@ -91,7 +123,8 @@ export default function BookmarksPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                {answer.snippet && <p className="text-muted-foreground mb-4 line-clamp-2">{answer.snippet}</p>}
+                {/* Snippet could be added here if stored, or fetched if necessary */}
+                {/* <p className="text-muted-foreground mb-4 line-clamp-2">{answer.snippet}</p> */}
                 <Button asChild size="sm">
                   <Link href={`/answers/${answer.id}?subject=${answer.subjectId}`}>View Full Answer</Link>
                 </Button>
@@ -116,3 +149,4 @@ export default function BookmarksPage() {
     </div>
   );
 }
+

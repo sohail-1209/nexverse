@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation'; // Added useRouter
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Bookmark, Edit, Trash2, UserCircle, CalendarDays, CheckCircle, Brain, MessageSquare, ThumbsUp, ThumbsDown, Share2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, Edit, Trash2, UserCircle, CalendarDays, CheckCircle, Brain, MessageSquare, ThumbsUp, ThumbsDown, Share2, FileText, Download } from 'lucide-react'; // Added FileText, Download
 import { useAuth } from '@/contexts/auth-context';
 import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,92 +17,133 @@ import { summarizeAnswer, SummarizeAnswerInput, SummarizeAnswerOutput } from '@/
 import { Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
+import { db, doc, getDoc, deleteDoc, updateDoc, setDoc, serverTimestamp, storage, ref, deleteObject } from '@/lib/firebase'; // Added Firestore and Storage functions
 
-// TODO: Replace with actual answer data fetched from Firestore using answerId
-// TODO: Fetch subject name based on subjectId if available in query params or answer data
 interface Answer {
   id: string;
   title: string;
   subjectId: string;
-  subjectName?: string; // Add this if you can fetch it
+  subjectName?: string;
   category: string;
-  type: string; // e.g., 5-mark
-  content: string; // Markdown content
+  type: string;
+  content: string;
   tags: string[];
   userId: string;
   authorName: string;
   authorAvatar?: string;
-  createdAt: string; // Should be a timestamp or parsable date string
+  createdAt: any; // Firestore Timestamp
   isVerified: boolean;
   views?: number;
   likes?: number;
+  fileURL?: string;
+  fileName?: string; // For deleting from storage
 }
-
-const mockAnswerData: Answer = {
-  id: 'phys001',
-  title: 'Newton\'s First Law Explained in Detail',
-  subjectId: 'physics',
-  subjectName: 'Physics',
-  category: 'Conceptual',
-  type: '5-mark',
-  content: `Newton's First Law of Motion, also known as the law of inertia, states that an object at rest will stay at rest, and an object in motion will stay in motion with the same speed and in the same direction unless acted upon by an unbalanced force.
-
-**Key Concepts:**
-*   **Inertia:** The tendency of an object to resist changes in its state of motion.
-*   **Unbalanced Force:** A net force that changes an object's motion. If forces are balanced, the object's motion doesn't change.
-
-**Examples:**
-1.  A book resting on a table will remain at rest unless someone pushes or pulls it.
-2.  A satellite orbiting Earth will continue in its orbit at a constant speed unless acted upon by forces like atmospheric drag or gravitational pull from other celestial bodies.
-
-This law is fundamental to understanding how forces affect motion.`,
-  tags: ['mechanics', 'laws of motion', 'inertia', 'classical physics'],
-  userId: 'user123', // Mock user ID
-  authorName: 'John Doe',
-  authorAvatar: 'https://placehold.co/100x100.png',
-  createdAt: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
-  isVerified: true,
-  views: 155,
-  likes: 25,
-};
-
 
 export default function AnswerDetailPage() {
   const params = useParams();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const answerId = params.answerId as string;
   const { user, isAdmin } = useAuth();
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isBookmarked, setIsBookmarked] = useState(false); // TODO: Fetch bookmark status
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
-    // TODO: Fetch answer data from Firestore using answerId
-    // For now, use mock data
-    if (answerId === mockAnswerData.id) {
-      const subjectQueryParam = searchParams.get('subject');
-      setAnswer({...mockAnswerData, subjectId: subjectQueryParam || mockAnswerData.subjectId });
-    } else {
-      // Handle case where answer is not found, maybe redirect or show error
-      setAnswer(null);
-    }
-    setIsLoading(false);
-    // TODO: Fetch user's bookmark status for this answer
-  }, [answerId, searchParams]);
+    const fetchAnswer = async () => {
+      if (!answerId) return;
+      setIsLoading(true);
+      try {
+        const answerDocRef = doc(db, 'answers', answerId);
+        const answerDocSnap = await getDoc(answerDocRef);
 
-  const handleBookmark = () => {
-    // TODO: Implement bookmarking logic (add/remove from user's bookmarks in Firestore)
-    setIsBookmarked(!isBookmarked);
-    toast({ title: !isBookmarked ? 'Bookmarked!' : 'Bookmark Removed', description: `Answer "${answer?.title}" has been ${!isBookmarked ? 'added to' : 'removed from'} your bookmarks.` });
+        if (answerDocSnap.exists()) {
+          const fetchedAnswer = { id: answerDocSnap.id, ...answerDocSnap.data() } as Answer;
+          // Increment views (basic implementation, consider debouncing or server-side increment for production)
+          if(user && fetchedAnswer.userId !== user.uid) { // Don't count owner's views this simply
+             await updateDoc(answerDocRef, { views: (fetchedAnswer.views || 0) + 1 });
+             fetchedAnswer.views = (fetchedAnswer.views || 0) + 1;
+          }
+          setAnswer(fetchedAnswer);
+
+          // Fetch bookmark status if user is logged in
+          if (user) {
+            const bookmarkDocRef = doc(db, `users/${user.uid}/bookmarks`, answerId);
+            const bookmarkDocSnap = await getDoc(bookmarkDocRef);
+            setIsBookmarked(bookmarkDocSnap.exists());
+          }
+        } else {
+          setAnswer(null);
+          toast({ title: "Not Found", description: "This answer does not exist.", variant: "destructive"});
+        }
+      } catch (error) {
+        console.error("Error fetching answer:", error);
+        toast({ title: "Error", description: "Could not fetch the answer.", variant: "destructive"});
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAnswer();
+  }, [answerId, user]);
+
+  const handleBookmark = async () => {
+    if (!user || !answer) {
+      toast({ title: "Login Required", description: "Please log in to bookmark answers.", variant: "destructive" });
+      return;
+    }
+    const bookmarkDocRef = doc(db, `users/${user.uid}/bookmarks`, answer.id);
+    try {
+      if (isBookmarked) {
+        await deleteDoc(bookmarkDocRef);
+        toast({ title: 'Bookmark Removed', description: `Answer "${answer.title}" removed from your bookmarks.` });
+      } else {
+        await setDoc(bookmarkDocRef, { 
+          answerId: answer.id,
+          title: answer.title, // Denormalize for easier listing
+          subjectId: answer.subjectId,
+          subjectName: answer.subjectName,
+          category: answer.category,
+          type: answer.type,
+          isVerified: answer.isVerified,
+          bookmarkedAt: serverTimestamp() 
+        });
+        toast({ title: 'Bookmarked!', description: `Answer "${answer.title}" added to your bookmarks.` });
+      }
+      setIsBookmarked(!isBookmarked);
+    } catch (error) {
+      console.error("Error bookmarking answer:", error);
+      toast({ title: "Error", description: "Could not update bookmark. Please try again.", variant: "destructive"});
+    }
   };
 
   const handleDelete = async () => {
-    // TODO: Implement delete logic (remove from Firestore, check permissions)
-    console.log("Delete answer:", answerId);
-    toast({ title: "Answer Deleted", description: "The answer has been successfully deleted." });
-    // router.push(`/subjects/${answer?.subjectId}`); // Or wherever appropriate
+    if (!user || !answer) return;
+    if (user.uid !== answer.userId && !isAdmin) {
+      toast({ title: "Permission Denied", description: "You cannot delete this answer.", variant: "destructive"});
+      return;
+    }
+
+    try {
+      // Delete from Firestore
+      await deleteDoc(doc(db, 'answers', answer.id));
+
+      // Delete file from Storage if it exists
+      if (answer.fileURL && answer.fileName) {
+        const fileRef = ref(storage, `answers/${answer.userId}/${answer.fileName}`);
+        await deleteObject(fileRef);
+      }
+      
+      // TODO: Optionally, remove this answer from all users' bookmarks (more complex, consider a Cloud Function)
+
+      toast({ title: "Answer Deleted", description: "The answer has been successfully deleted." });
+      router.push(answer.subjectId ? `/subjects/${answer.subjectId}` : '/subjects');
+    } catch (error) {
+      console.error("Error deleting answer:", error);
+      toast({ title: "Deletion Failed", description: "Could not delete the answer.", variant: "destructive"});
+    }
   };
 
   const handleImproveWithAI = async () => {
@@ -137,7 +178,6 @@ export default function AnswerDetailPage() {
     }
   };
 
-
   if (isLoading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
   }
@@ -155,6 +195,7 @@ export default function AnswerDetailPage() {
   }
 
   const isOwner = user && user.uid === answer.userId;
+  const displayDate = answer.createdAt?.toDate ? answer.createdAt.toDate().toLocaleDateString() : 'N/A';
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -179,42 +220,61 @@ export default function AnswerDetailPage() {
               <div>
                 <p className="font-semibold">{answer.authorName}</p>
                 <p className="text-xs text-muted-foreground">
-                  Published on {new Date(answer.createdAt).toLocaleDateString()}
+                  Published on {displayDate}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2 mt-2 md:mt-0">
               {answer.isVerified && <Badge variant="default" className="bg-accent text-accent-foreground flex items-center gap-1"><CheckCircle className="h-4 w-4" /> Verified</Badge>}
-              <Badge variant="secondary">{answer.category}</Badge>
-              <Badge variant="outline">{answer.type}</Badge>
+              <Badge variant="secondary">{answer.category?.replace('_', ' ')}</Badge>
+              <Badge variant="outline">{answer.type?.replace('_', ' ')}</Badge>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {/* Using prose for basic markdown styling. Needs Tailwind Typography plugin for full effect */}
           <div className="prose dark:prose-invert max-w-none mb-6" dangerouslySetInnerHTML={{ __html: answer.content.replace(/\n/g, '<br />') }} />
           
-          <div className="flex flex-wrap gap-2 mb-6">
-            {answer.tags.map(tag => <Badge key={tag} variant="outline"># {tag}</Badge>)}
-          </div>
+          {answer.fileURL && (
+            <div className="mb-6 p-4 border rounded-md bg-muted/50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <span className="font-medium">Attached File</span>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={answer.fileURL} target="_blank" rel="noopener noreferrer">
+                    <Download className="mr-2 h-4 w-4" /> Download
+                  </a>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {answer.tags && answer.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {answer.tags.map(tag => <Badge key={tag} variant="outline"># {tag}</Badge>)}
+            </div>
+          )}
 
           <Separator className="my-6" />
 
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex gap-4 text-muted-foreground">
               {/* TODO: Implement like/dislike functionality */}
-              <Button variant="ghost" size="sm"><ThumbsUp className="mr-2 h-4 w-4" /> ({answer.likes || 0})</Button>
-              <Button variant="ghost" size="sm"><ThumbsDown className="mr-2 h-4 w-4" /> (0)</Button>
-              <Button variant="ghost" size="sm"><Share2 className="mr-2 h-4 w-4" /> Share</Button>
+              <Button variant="ghost" size="sm" disabled><ThumbsUp className="mr-2 h-4 w-4" /> ({answer.likes || 0})</Button>
+              <Button variant="ghost" size="sm" disabled><ThumbsDown className="mr-2 h-4 w-4" /> (0)</Button>
+              <Button variant="ghost" size="sm" disabled><Share2 className="mr-2 h-4 w-4" /> Share</Button>
             </div>
             <div className="flex gap-2">
-              <Button variant={isBookmarked ? "default" : "outline"} onClick={handleBookmark}>
-                <Bookmark className="mr-2 h-4 w-4" /> {isBookmarked ? 'Bookmarked' : 'Bookmark'}
-              </Button>
+              {user && (
+                <Button variant={isBookmarked ? "default" : "outline"} onClick={handleBookmark}>
+                  <Bookmark className="mr-2 h-4 w-4" /> {isBookmarked ? 'Bookmarked' : 'Bookmark'}
+                </Button>
+              )}
               {(isOwner || isAdmin) && (
                 <>
-                  <Button variant="outline" size="icon" asChild>
-                    <Link href={`/answers/edit/${answer.id}`}> {/* TODO: Create edit page */}
+                  <Button variant="outline" size="icon" asChild disabled> {/* TODO: Create edit page */}
+                    <Link href={`/answers/edit/${answer.id}`}> 
                       <Edit className="h-4 w-4" />
                       <span className="sr-only">Edit</span>
                     </Link>
@@ -286,3 +346,4 @@ export default function AnswerDetailPage() {
     </div>
   );
 }
+

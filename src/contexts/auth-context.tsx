@@ -1,15 +1,16 @@
+
 'use client';
 
 import type { User as FirebaseUser } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { auth } from '@/lib/firebase';
+import { auth, db, doc, getDoc } from '@/lib/firebase'; // Added db, doc, getDoc
 import { onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: FirebaseUser | null;
   loading: boolean;
-  isAdmin: boolean; // Placeholder for role-based access
+  isAdmin: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -18,23 +19,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false); // Placeholder
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        // In a real app, you would fetch user roles from Firestore here
-        // For example:
-        // const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-        // if (userDoc.exists() && userDoc.data().role === 'admin') {
-        //   setIsAdmin(true);
-        // } else {
-        //   setIsAdmin(false);
-        // }
-        // For now, simple placeholder logic for admin (e.g. specific UID)
-        setIsAdmin(firebaseUser.email === 'admin@example.com'); // TODO: Replace with actual role check
+        // Fetch user role from Firestore
+        const userDocRef = doc(db, "users", firebaseUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
       } else {
         setUser(null);
         setIsAdmin(false);
@@ -69,3 +68,4 @@ export function useAuth() {
   }
   return context;
 }
+

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,9 +15,8 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase'; // Assuming db is exported for Firestore operations
-// import { doc, setDoc } from 'firebase/firestore'; // If you need to save user data to Firestore
+import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup, UserCredential } from 'firebase/auth';
+import { auth, db, doc, setDoc, getDoc, serverTimestamp } from '@/lib/firebase'; // Added db, doc, setDoc, getDoc, serverTimestamp
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
@@ -49,23 +49,42 @@ export function SignupForm() {
     },
   });
 
+  const saveUserToFirestore = async (userCred: UserCredential, displayName?: string) => {
+    const user = userCred.user;
+    if (!user) return;
+
+    const userDocRef = doc(db, "users", user.uid);
+    // Check if user document already exists (e.g., from a previous Google sign-in)
+    const userDocSnap = await getDoc(userDocRef);
+
+    if (!userDocSnap.exists()) {
+      await setDoc(userDocRef, {
+        uid: user.uid,
+        displayName: displayName || user.displayName,
+        email: user.email,
+        photoURL: user.photoURL,
+        role: "user", // Default role
+        createdAt: serverTimestamp(),
+      });
+    } else {
+      // Optionally update existing document if needed, e.g. displayName if Google sign-in was first
+      if (displayName && userDocSnap.data()?.displayName !== displayName) {
+        await setDoc(userDocRef, { displayName }, { merge: true });
+      }
+    }
+  };
+
+
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       await updateProfile(userCredential.user, { displayName: values.displayName });
       
-      // Optional: Save additional user info to Firestore
-      // await setDoc(doc(db, "users", userCredential.user.uid), {
-      //   uid: userCredential.user.uid,
-      //   displayName: values.displayName,
-      //   email: values.email,
-      //   role: "user", // Default role
-      //   createdAt: new Date(),
-      // });
+      await saveUserToFirestore(userCredential, values.displayName);
 
       toast({ title: 'Signup Successful', description: 'Welcome to NExVERSE!' });
-      router.push('/dashboard'); // Or intended URL after signup
+      router.push('/dashboard'); 
     } catch (error: any) {
       console.error(error);
       let errorMessage = 'An unexpected error occurred. Please try again.';
@@ -83,25 +102,12 @@ export function SignupForm() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      // const user = result.user;
-      // Optional: Save new Google user to Firestore if they don't exist
-      // const userDocRef = doc(db, "users", user.uid);
-      // const userDoc = await getDoc(userDocRef);
-      // if (!userDoc.exists()) {
-      //   await setDoc(userDocRef, {
-      //     uid: user.uid,
-      //     displayName: user.displayName,
-      //     email: user.email,
-      //     photoURL: user.photoURL,
-      //     role: "user",
-      //     createdAt: new Date(),
-      //   });
-      // }
+      await saveUserToFirestore(result);
       toast({ title: 'Sign-in Successful', description: 'Welcome!' });
       router.push('/dashboard');
     } catch (error: any) {
       console.error(error);
-      toast({ title: 'Google Sign-In Failed', description: error.message, variant: 'destructive' });
+      toast({ title: 'Google Sign-In Failed', description: error.message || "An error occurred", variant: 'destructive' });
     } finally {
       setIsGoogleLoading(false);
     }
@@ -162,7 +168,7 @@ export function SignupForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={isLoading}>
+        <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
           {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Sign Up
         </Button>
@@ -188,3 +194,4 @@ export function SignupForm() {
     </Form>
   );
 }
+
