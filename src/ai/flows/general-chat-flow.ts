@@ -1,9 +1,9 @@
 
 'use server';
 /**
- * @fileOverview A general purpose AI chat flow.
+ * @fileOverview A general purpose AI chat flow that can optionally process text from a PDF.
  *
- * - askGeneralQuestion - A function that takes a user's query and returns an AI-generated response.
+ * - askGeneralQuestion - A function that takes a user's query and optional PDF text, returning an AI-generated response.
  * - GeneralChatInput - The input type for the askGeneralQuestion function.
  * - GeneralChatOutput - The return type for the askGeneralQuestion function.
  */
@@ -13,6 +13,7 @@ import {z} from 'genkit';
 
 const GeneralChatInputSchema = z.object({
   query: z.string().describe('The user’s question or message.'),
+  pdfTextContent: z.string().optional().describe('Text content extracted from an uploaded PDF file.'),
 });
 export type GeneralChatInput = z.infer<typeof GeneralChatInputSchema>;
 
@@ -39,8 +40,15 @@ You can help with:
 
 User's query: {{{query}}}
 
+{{#if pdfTextContent}}
+The user has also provided the following text content from a PDF document. Use this content to inform your response if relevant to the query:
+--- PDF START ---
+{{{pdfTextContent}}}
+--- PDF END ---
+{{/if}}
+
 Provide a helpful and concise response.
-If the query is outside your scope, politely state that you cannot assist with that specific request.
+If the query is outside your scope, or if you cannot process the provided PDF content effectively with the query, politely state that you cannot assist with that specific request or that part of the request.
 `,
 });
 
