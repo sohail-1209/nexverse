@@ -12,18 +12,17 @@ import { useAuth } from '@/contexts/auth-context';
 import { askGeneralQuestion, GeneralChatInput, GeneralChatOutput } from '@/ai/flows/general-chat-flow';
 import { toast } from '@/hooks/use-toast';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf'; // Using legacy build for broader compatibility
-// Make sure to set the workerSrc. You might need to copy the worker file to your public directory.
+
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
-
 
 interface Message {
   id: string;
   text: string;
   sender: 'user' | 'ai';
   timestamp: Date;
-  pdfFileName?: string; // To display if a PDF was sent with this message
+  pdfFileName?: string;
 }
 
 interface AttachedPdf {
@@ -31,6 +30,8 @@ interface AttachedPdf {
   textContent: string | null;
   file: File;
 }
+
+const LOCAL_STORAGE_CHAT_KEY = 'nexverseChatMessages';
 
 export default function ChatPage() {
   const { user } = useAuth();
@@ -46,6 +47,52 @@ export default function ChatPage() {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
   };
+  
+  // Load messages from localStorage on initial mount
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const savedMessagesRaw = localStorage.getItem(LOCAL_STORAGE_CHAT_KEY);
+        if (savedMessagesRaw) {
+          const parsedMessages: Message[] = JSON.parse(savedMessagesRaw).map((msg: Message) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp), // Ensure timestamp is a Date object
+          }));
+          setMessages(parsedMessages);
+        } else {
+          // No saved messages, set initial greeting
+          setMessages([
+            { id: 'ai-greeting', text: "Hello! I'm your NExVERSE AI Assistant. How can I help you today? You can ask me about exam topics, request summaries, or ask for help improving an answer. You can also attach a PDF for context.", sender: 'ai', timestamp: new Date() }
+          ]);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading messages from localStorage:", error);
+      // Fallback to initial greeting on error
+      setMessages([
+        { id: 'ai-greeting', text: "Hello! I'm your NExVERSE AI Assistant. How can I help you today? You can ask me about exam topics, request summaries, or ask for help improving an answer. You can also attach a PDF for context.", sender: 'ai', timestamp: new Date() }
+      ]);
+    }
+  }, []);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && messages.length > 0) {
+        // Avoid saving the very initial state if it's just the greeting and nothing else has happened
+        if (messages.length === 1 && messages[0].id === 'ai-greeting' && messages[0].sender === 'ai') {
+            // Check if this initial greeting was just set (i.e., localStorage was empty)
+            // If it was just set, and a user hasn't interacted, don't immediately save it back
+            // This check can be refined. For now, it saves unless it's ONLY the initial greeting.
+        } else {
+             localStorage.setItem(LOCAL_STORAGE_CHAT_KEY, JSON.stringify(messages));
+        }
+      }
+    } catch (error) {
+      console.error("Error saving messages to localStorage:", error);
+    }
+  }, [messages]);
+
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -53,17 +100,12 @@ export default function ChatPage() {
     }
   }, [messages]);
   
-  useEffect(() => {
-    setMessages([
-      { id: 'ai-greeting', text: "Hello! I'm your NExVERSE AI Assistant. How can I help you today? You can ask me about exam topics, request summaries, or ask for help improving an answer. You can also attach a PDF for context.", sender: 'ai', timestamp: new Date() }
-    ]);
-  }, []);
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type === 'application/pdf') {
       setIsPdfProcessing(true);
-      setAttachedPdf({ name: file.name, textContent: null, file }); // Show name immediately
+      setAttachedPdf({ name: file.name, textContent: null, file }); 
       try {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -85,7 +127,6 @@ export default function ChatPage() {
     } else if (file) {
       toast({ title: "Invalid File", description: "Please select a PDF file.", variant: "destructive" });
     }
-    // Reset file input to allow selecting the same file again if removed
     if (fileInputRef.current) {
         fileInputRef.current.value = "";
     }
@@ -94,7 +135,7 @@ export default function ChatPage() {
   const removeAttachedPdf = () => {
     setAttachedPdf(null);
     if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Clear the file input
+        fileInputRef.current.value = ""; 
     }
   };
 
@@ -113,14 +154,13 @@ export default function ChatPage() {
     };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    // The attachedPdf state is NO LONGER cleared here automatically.
-    // It will persist until the user manually clicks the 'X' button.
+    // Persist attachedPdf until manually removed
     
     setIsLoading(true);
 
     try {
       const aiInput: GeneralChatInput = { 
-        query: userMessage.text, // Use the actual text from userMessage which might include PDF context
+        query: userMessage.text, 
         pdfTextContent: attachedPdf?.textContent || undefined,
       };
       const aiResponseData: GeneralChatOutput = await askGeneralQuestion(aiInput);
@@ -149,9 +189,6 @@ export default function ChatPage() {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
-      // The fileInputRef.current.value is NO LONGER reset here automatically.
-      // This allows the same PDF to be "sent" with multiple messages if desired,
-      // until manually cleared.
     }
   };
 
@@ -198,7 +235,7 @@ export default function ChatPage() {
                       </div>
                     )}
                     <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/70 text-right' : 'text-muted-foreground/70'}`}>
-                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                   {message.sender === 'user' && user && (
