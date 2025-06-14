@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Send, MessageSquareIcon, User, Bot, Loader2, Paperclip, XCircle, FileText, Camera, ImageUp, AlertTriangle, Mic, MicOff } from 'lucide-react';
+import { Send, MessageSquareIcon, User, Bot, Loader2, Paperclip, XCircle, FileText, Camera, ImageUp, AlertTriangle, Mic, MicOff, Trash2, Eraser } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/auth-context';
 import { askGeneralQuestion, GeneralChatInput, GeneralChatOutput } from '@/ai/flows/general-chat-flow';
@@ -15,6 +15,17 @@ import { toast } from '@/hooks/use-toast';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Image from 'next/image';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
@@ -36,23 +47,28 @@ interface AttachedPdf {
 }
 
 const LOCAL_STORAGE_CHAT_KEY = 'nexverseChatMessages';
+const initialGreetingMessage: Message = { 
+  id: 'ai-greeting', 
+  text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, send an image, or use voice input for a comprehensive interaction.", 
+  sender: 'ai', 
+  timestamp: new Date() 
+};
+
 
 declare global {
   interface Window {
     SpeechRecognition: typeof SpeechRecognition;
     webkitSpeechRecognition: typeof SpeechRecognition;
   }
-  // Extend SpeechRecognitionEvent if not fully typed
   interface SpeechRecognitionEvent extends Event {
     results: SpeechRecognitionResultList;
     resultIndex: number;
-    // Add other properties if needed based on usage
   }
 }
 
 export default function ChatPage() {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([initialGreetingMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
@@ -90,26 +106,34 @@ export default function ChatPage() {
             ...msg,
             timestamp: new Date(msg.timestamp),
           }));
-          setMessages(parsedMessages);
+          if (parsedMessages.length > 0) {
+            setMessages(parsedMessages);
+          } else {
+             setMessages([initialGreetingMessage]);
+          }
         } else {
-          setMessages([
-            { id: 'ai-greeting', text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, send an image, or use voice input for a comprehensive interaction.", sender: 'ai', timestamp: new Date() }
-          ]);
+          setMessages([initialGreetingMessage]);
         }
       }
     } catch (error) {
       console.error("Error loading messages from localStorage:", error);
-      setMessages([
-        { id: 'ai-greeting', text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, send an image, or use voice input for a comprehensive interaction.", sender: 'ai', timestamp: new Date() }
-      ]);
+      setMessages([initialGreetingMessage]);
     }
   }, []);
 
   useEffect(() => {
     try {
-      if (typeof window !== 'undefined' && messages.length > 0) {
-        if (!(messages.length === 1 && messages[0].id === 'ai-greeting' && messages[0].sender === 'ai')) {
-             localStorage.setItem(LOCAL_STORAGE_CHAT_KEY, JSON.stringify(messages));
+      if (typeof window !== 'undefined') {
+        if (messages.length === 1 && messages[0].id === 'ai-greeting') {
+          // If only the greeting message exists, clear localStorage
+          localStorage.removeItem(LOCAL_STORAGE_CHAT_KEY);
+        } else if (messages.length > 0) {
+          // Otherwise, save the messages
+          localStorage.setItem(LOCAL_STORAGE_CHAT_KEY, JSON.stringify(messages));
+        } else {
+          // If messages array is empty (e.g., after a clear then delete greeting), clear storage
+           localStorage.removeItem(LOCAL_STORAGE_CHAT_KEY);
+           setMessages([initialGreetingMessage]); // Ensure greeting is back if fully emptied
         }
       }
     } catch (error) {
@@ -391,7 +415,7 @@ export default function ChatPage() {
         aiResponseData = await askGeneralQuestion(aiInput);
       }
       
-      const aiText = aiResponseData.response; // Should be a clean string from the server flow
+      const aiText = aiResponseData.response;
 
       const aiMessage: Message = {
         id: `ai-${Date.now()}`,
@@ -424,16 +448,48 @@ export default function ChatPage() {
     }
   };
 
+  const handleClearChat = () => {
+    setMessages([initialGreetingMessage]);
+    toast({ title: 'Chat Cleared', description: 'Your chat history has been cleared.' });
+  };
+
+  const handleDeleteMessage = (messageId: string) => {
+    setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
+    toast({ title: 'Message Deleted', description: 'The message has been removed.' });
+  };
+
+
   return (
     <div className="flex flex-col h-full">
       <Card className="flex-grow flex flex-col shadow-xl">
         <CardHeader className="border-b">
-          <div className="flex items-center gap-3">
-            <MessageSquareIcon className="h-8 w-8 text-primary" />
-            <div>
-              <CardTitle className="font-headline text-2xl">AI Chat Assistant</CardTitle>
-              <CardDescription>Ask questions, get summaries, or seek help. Attach PDFs, capture images, or use voice input.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <MessageSquareIcon className="h-8 w-8 text-primary" />
+              <div>
+                <CardTitle className="font-headline text-2xl">AI Chat Assistant</CardTitle>
+                <CardDescription>Ask questions, get summaries, or seek help. Attach PDFs, capture images, or use voice input.</CardDescription>
+              </div>
             </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="icon" title="Clear Chat History" disabled={messages.length <= 1 && messages[0].id === 'ai-greeting'}>
+                  <Eraser className="h-5 w-5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear Chat History?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to clear all messages in this chat? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearChat} className="bg-destructive hover:bg-destructive/90">Clear Chat</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </CardHeader>
         <CardContent className="flex-grow p-0">
@@ -442,7 +498,7 @@ export default function ChatPage() {
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex items-end gap-3 ${
+                  className={`group relative flex items-end gap-3 ${
                     message.sender === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
@@ -482,6 +538,34 @@ export default function ChatPage() {
                       <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
                       <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                     </Avatar>
+                  )}
+                  {message.id !== 'ai-greeting' && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                         <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6
+                            ${message.sender === 'user' ? 'left-[-1.75rem]' : 'right-[-1.75rem]'}
+                          `}
+                          title="Delete Message"
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Message?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this message? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDeleteMessage(message.id)} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
                 </div>
               ))}
