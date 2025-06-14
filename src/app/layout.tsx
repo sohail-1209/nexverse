@@ -7,13 +7,12 @@ import AppFooter from '@/components/layout/app-footer';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from 'next-themes';
-import { GlobalAuthRedirect } from '@/components/layout/global-auth-redirect'; // Import the new component
+import { GlobalAuthRedirect } from '@/components/layout/global-auth-redirect';
 
 export const metadata: Metadata = {
   title: 'NExVERSE - Your Exam Companion',
   description: 'Organize, share, and discover exam answers with NExVERSE.',
-  // PWA specific metadata that can be set here if not dynamically generated
-  // manifest: "/manifest.json", // Next.js 13+ App Router often handles this, but explicit link is also fine.
+  // manifest: "/manifest.json", 
 };
 
 export default function RootLayout({
@@ -28,10 +27,8 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        {/* PWA Tags */}
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#3F51B5" /> {/* Primary color from style guidelines */}
-        {/* Apple PWA Tags */}
+        <meta name="theme-color" content="#3F51B5" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="NExVERSE" />
@@ -47,7 +44,7 @@ export default function RootLayout({
           <AuthProvider>
             <AppHeader />
             <main className="flex-grow container mx-auto px-4 py-8">
-              <GlobalAuthRedirect>{children}</GlobalAuthRedirect> {/* Wrap children with the redirect logic */}
+              <GlobalAuthRedirect>{children}</GlobalAuthRedirect>
             </main>
             <AppFooter />
             <Toaster />
