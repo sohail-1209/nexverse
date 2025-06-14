@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -12,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BookOpenText, Home, LogIn, LogOut, MessageSquare, PlusCircle, Search, Settings, User, Bookmark, Users } from 'lucide-react';
+import { LogIn, LogOut, Search } from 'lucide-react'; // Removed unused icons for now, will be re-added by config
 import { SiteLogo } from '@/components/common/site-logo';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -40,6 +41,7 @@ export default function AppHeader() {
   const mainNavLinks = siteConfig.mainNav;
   const authenticatedNavLinks = siteConfig.authenticatedNav;
   const adminNavLinks = siteConfig.adminNav;
+  const profileNavLinks = siteConfig.profileNav || []; // Ensure profileNavLinks is an array
 
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
@@ -95,18 +97,14 @@ export default function AppHeader() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Profile</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </Link>
-                </DropdownMenuItem>
+                {profileNavLinks.map((item) => (
+                  <DropdownMenuItem key={item.href} asChild>
+                    <Link href={item.href}>
+                      {item.icon && <item.icon className="mr-2 h-4 w-4" />}
+                      <span>{item.title}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut}>
                   <LogOut className="mr-2 h-4 w-4" />
