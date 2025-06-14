@@ -93,5 +93,11 @@ if (!app!) {
 const auth: Auth = getAuth(app!);
 const db: Firestore = getFirestore(app!);
 
-export { app, auth, db, analytics, storage, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc, ref, uploadBytes, getDownloadURL, deleteObject, orderBy, limit, startAfter, documentId };
+// IMPORTANT: For `auth/unauthorized-domain` errors with OAuth providers (like Google Sign-In):
+// 1. Ensure your app's deployed domain (e.g., `your-project-id.web.app` or custom domain) is in "Authorized domains"
+//    in Firebase Console > Authentication > Sign-in method.
+// 2. Critically, for OAuth providers, the domain `[YOUR_PROJECT_ID].firebaseapp.com` (e.g., `nexverse-2cc70.firebaseapp.com`)
+//    MUST ALSO be added to "Authorized domains". This is used for the OAuth redirect.
+// 3. The `authDomain` in your `firebaseConfig` (loaded from environment variables/secrets) MUST be `[YOUR_PROJECT_ID].firebaseapp.com`.
 
+export { app, auth, db, analytics, storage, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc, ref, uploadBytes, getDownloadURL, deleteObject, orderBy, limit, startAfter, documentId };
