@@ -1,25 +1,24 @@
 {
   "name": "NExVERSE",
   "short_name": "NExVERSE",
-  "description": "Your ultimate companion for exam preparation. Organize, share, and discover answers efficiently.",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#F5F7FA",
-  "theme_color": "#33AADD",
+  "description": "Your ultimate companion for exam preparation. Organize, share, and discover answers efficiently. Powered by AI to help you learn smarter.",
   "icons": [
     {
-      "src": "https://placehold.co/192x192.png",
+      "src": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcS9spLSZsqR6lnssbwBPgPEyc6A7YvHjcoyB05hFmApXolmKKd3",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable",
-      "data-ai-hint": "app icon"
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     },
     {
-      "src": "https://placehold.co/512x512.png",
+      "src": "https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcS9spLSZsqR6lnssbwBPgPEyc6A7YvHjcoyB05hFmApXolmKKd3",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable",
-      "data-ai-hint": "app icon"
+      "type": "image/jpeg",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "theme_color": "#3F51B5",
+  "background_color": "#F5F5F5",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait"
 }

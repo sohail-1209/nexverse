@@ -1,22 +1,19 @@
-import type { SVGProps } from 'react';
+import Image from 'next/image';
 
-export function SiteLogo(props: SVGProps<SVGSVGElement>) {
+interface SiteLogoProps {
+  size?: number;
+  className?: string;
+}
+
+export function SiteLogo({ size = 32, className }: SiteLogoProps) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      {/* Simple abstract 'N' like shape or a book/brain icon */}
-      <path d="M12 2L2 7l10 5 10-5-10-5z" />
-      <path d="M2 17l10 5 10-5" />
-      <path d="M2 12l10 5 10-5" />
-      <title>NExVERSE Logo</title>
-    </svg>
+    <Image
+      src="https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcS9spLSZsqR6lnssbwBPgPEyc6A7YvHjcoyB05hFmApXolmKKd3"
+      alt="NExVERSE Logo"
+      width={size}
+      height={size}
+      className={className}
+      priority // Add priority if it's LCP, good for header logo
+    />
   );
 }

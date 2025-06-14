@@ -10,7 +10,7 @@ export default function AppFooter() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
           <div className="flex items-center space-x-2">
-             <SiteLogo className="h-6 w-6 text-muted-foreground" />
+             <SiteLogo size={24} />
             <p className="text-sm text-muted-foreground font-headline">
               &copy; {currentYear} NExVERSE. All rights reserved.
             </p>

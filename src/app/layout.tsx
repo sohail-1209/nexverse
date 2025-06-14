@@ -31,13 +31,13 @@ export default function RootLayout({
         
         {/* PWA Tags */}
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#33AADD" /> {/* Corresponds to primary color approx. */}
+        <meta name="theme-color" content="#3F51B5" /> {/* Primary color from style guidelines */}
         
         {/* Apple PWA Tags */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="NExVERSE" />
-        <link rel="apple-touch-icon" href="https://placehold.co/192x192.png" data-ai-hint="app icon"/>
+        <link rel="apple-touch-icon" href="https://encrypted-tbn3.gstatic.com/images?q=tbn:ANd9GcS9spLSZsqR6lnssbwBPgPEyc6A7YvHjcoyB05hFmApXolmKKd3"/>
 
       </head>
       <body className={cn("min-h-screen bg-background font-body antialiased flex flex-col")}>

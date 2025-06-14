@@ -9,7 +9,7 @@ export default function SignupPage() {
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
            <div className="mx-auto mb-4">
-            <SiteLogo className="h-12 w-12 text-primary" />
+            <SiteLogo size={48} />
           </div>
           <CardTitle className="font-headline text-3xl">Create an Account</CardTitle>
           <CardDescription>Join NExVERSE today to manage and discover exam answers.</CardDescription>
