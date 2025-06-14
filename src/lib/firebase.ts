@@ -9,7 +9,7 @@ import { getStorage, FirebaseStorage, ref, uploadBytes, getDownloadURL, deleteOb
 // These environment variables are populated by App Hosting from Google Secret Manager secrets
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, // IMPORTANT: Ensure this domain and your app's actual deployed domain are in Firebase Console > Authentication > Sign-in method > Authorized domains.
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
@@ -23,11 +23,9 @@ if (typeof window === 'undefined') {
   console.log('[Firebase Init] Server-side: Project ID from env (NEXT_PUBLIC_FIREBASE_PROJECT_ID):', firebaseConfig.projectId || 'PROJECT_ID_NOT_FOUND_IN_ENV');
   if (!firebaseConfig.apiKey) {
     console.warn('[Firebase Init] Server-side: CRITICAL - Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is MISSING or UNDEFINED in the environment. This will cause Firebase initialization to fail.');
-  } else {
-    // console.log('[Firebase Init] Server-side: Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is present.'); // Optionally log masked key or just presence
   }
   if (!firebaseConfig.authDomain) {
-    console.warn('[Firebase Init] Server-side: Firebase Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) is MISSING or UNDEFINED.');
+    console.warn('[Firebase Init] Server-side: Firebase Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) is MISSING or UNDEFINED. Also verify this domain is in your Firebase project\'s "Authorized domains" list for Authentication.');
   }
 }
 
