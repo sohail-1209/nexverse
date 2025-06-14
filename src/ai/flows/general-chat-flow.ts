@@ -30,13 +30,7 @@ const prompt = ai.definePrompt({
   name: 'generalChatPrompt',
   input: {schema: GeneralChatInputSchema},
   output: {schema: GeneralChatOutputSchema},
-  prompt: `You are NExVERSE AI, a helpful assistant for students using the NExVERSE platform.
-NExVERSE is a platform for sharing and discovering exam answers, study materials, and collaborating.
-You can help with:
-- Answering questions about exam topics.
-- Summarizing content.
-- Suggesting improvements for answers.
-- General academic assistance related to exam preparation.
+  prompt: `You are a helpful AI Assistant. Respond to the user's query.
 
 User's query: {{{query}}}
 
@@ -48,7 +42,7 @@ The user has also provided the following text content from a PDF document. Use t
 {{/if}}
 
 Provide a helpful and concise response.
-If the query is outside your scope, or if you cannot process the provided PDF content effectively with the query, politely state that you cannot assist with that specific request or that part of the request.
+If the query is something you cannot assist with, politely state that.
 `,
 });
 

@@ -93,14 +93,14 @@ export default function ChatPage() {
           setMessages(parsedMessages);
         } else {
           setMessages([
-            { id: 'ai-greeting', text: "Hello! I'm your NExVERSE AI Assistant. How can I help you today? You can ask me about exam topics, request summaries, or ask for help improving an answer. You can also attach a PDF or send an image for context.", sender: 'ai', timestamp: new Date() }
+            { id: 'ai-greeting', text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, or send an image for context.", sender: 'ai', timestamp: new Date() }
           ]);
         }
       }
     } catch (error) {
       console.error("Error loading messages from localStorage:", error);
       setMessages([
-        { id: 'ai-greeting', text: "Hello! I'm your NExVERSE AI Assistant. How can I help you today? You can ask me about exam topics, request summaries, or ask for help improving an answer. You can also attach a PDF or send an image for context.", sender: 'ai', timestamp: new Date() }
+        { id: 'ai-greeting', text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, or send an image for context.", sender: 'ai', timestamp: new Date() }
       ]);
     }
   }, []);

@@ -36,14 +36,7 @@ const prompt = ai.definePrompt({
   name: 'chatWithImagePrompt',
   input: {schema: ChatWithImageInputSchema},
   output: {schema: ChatWithImageOutputSchema},
-  prompt: `You are NExVERSE AI, a helpful assistant for students using the NExVERSE platform.
-NExVERSE is a platform for sharing and discovering exam answers, study materials, and collaborating.
-You can help with:
-- Answering questions about exam topics.
-- Summarizing content.
-- Suggesting improvements for answers.
-- General academic assistance related to exam preparation.
-- If an image is provided, analyze the image in the context of the user's query.
+  prompt: `You are a helpful AI Assistant. Respond to the user's query.
 
 User's query: {{{query}}}
 
