@@ -12,7 +12,7 @@ export default function HomePage() {
           <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
             <div className="flex flex-col justify-center space-y-4 text-left">
               <div className="space-y-2">
-                <h1 className="font-headline text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
+                <h1 className="font-michroma text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
                   Welcome to <span className="text-primary">NExVERSE</span>
                 </h1>
                 <p className="max-w-[600px] text-muted-foreground md:text-xl">
