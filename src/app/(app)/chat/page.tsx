@@ -559,7 +559,7 @@ export default function ChatPage() {
             <div className="flex items-center gap-3">
               <MessageSquareIcon className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle className="font-audiowide text-2xl font-normal">NEXI ✨</CardTitle>
+                <CardTitle className="font-audiowide text-2xl font-normal text-primary">NEXI ✨</CardTitle>
                 <CardDescription>Ask questions, get summaries, or seek help. Attach PDFs, capture images, or use voice input.</CardDescription>
               </div>
             </div>
