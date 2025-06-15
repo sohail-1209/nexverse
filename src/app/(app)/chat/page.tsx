@@ -270,56 +270,91 @@ export default function ChatPage() {
       setHasCameraPermission(false);
       return false;
     }
+
+    const processStream = (stream: MediaStream) => {
+        streamRef.current = stream;
+        if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+        }
+        setHasCameraPermission(true);
+
+        const videoTracks = stream.getVideoTracks();
+        if (videoTracks.length > 0) {
+            const track = videoTracks[0];
+            const settings = track.getSettings();
+            console.log('Camera track settings:', settings);
+            let facingModeToastMessage = 'Camera selected.';
+            if (settings.facingMode) {
+                if (settings.facingMode === 'user') {
+                    facingModeToastMessage = 'Front camera selected.';
+                } else if (settings.facingMode === 'environment') {
+                    facingModeToastMessage = 'Rear camera selected.';
+                } else {
+                    facingModeToastMessage = `Camera selected (facing mode: ${settings.facingMode}).`;
+                }
+            } else {
+                 facingModeToastMessage = `Camera selected (facing mode not reported).`;
+            }
+            toast({
+                title: 'Camera Active',
+                description: facingModeToastMessage,
+            });
+        }
+        return true;
+    };
+
     try {
-      // Prefer rear camera (environment) if available
       const constraints = { 
         video: { 
           facingMode: { ideal: "environment" } 
         } 
       };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream; 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setHasCameraPermission(true);
-      return true;
+      return processStream(stream);
     } catch (error: any) {
-      console.error('Error accessing camera:', error);
-      setHasCameraPermission(false);
-      let description = 'Please enable camera permissions in your browser settings.';
-      if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+      console.warn('Error accessing ideal (environment) camera:', error.name, error.message);
+      let description = `Could not access the preferred camera (Error: ${error.name}). Trying default camera.`;
+       if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
         description = "No camera found. Please ensure a camera is connected and enabled.";
       } else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
         description = "Camera access denied. Please enable camera permissions in your browser settings.";
       } else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") {
         description = "The requested camera (e.g., rear camera) is not available or does not meet criteria. Trying with any available camera.";
-         // Fallback to any camera if specific facingMode fails
-        try {
-            const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            streamRef.current = fallbackStream;
-            if (videoRef.current) {
-                videoRef.current.srcObject = fallbackStream;
-            }
-            setHasCameraPermission(true);
-            toast({
-                title: 'Camera Switched',
-                description: 'Using available camera.',
-            });
-            return true;
-        } catch (fallbackError: any) {
-            console.error('Fallback camera access error:', fallbackError);
-            description = `Could not access any camera. Please check permissions and connections. Error: ${fallbackError.name}`;
-            setHasCameraPermission(false);
-        }
       }
 
       toast({
         variant: 'destructive',
-        title: 'Camera Access Error',
+        title: 'Camera Access Issue',
         description: description,
       });
-      return false;
+
+      // Fallback to any camera if specific facingMode fails or other initial errors
+      if (error.name !== "NotAllowedError" && error.name !== "PermissionDeniedError") {
+        try {
+            console.log("Attempting fallback to any camera...");
+            const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            return processStream(fallbackStream);
+        } catch (fallbackError: any) {
+            console.error('Fallback camera access error:', fallbackError.name, fallbackError.message);
+            let fallbackDescription = `Could not access any camera. Error: ${fallbackError.name}. Please check permissions and connections.`;
+             if (fallbackError.name === "NotFoundError" || fallbackError.name === "DevicesNotFoundError") {
+                fallbackDescription = "No camera found. Please ensure a camera is connected and enabled.";
+            } else if (fallbackError.name === "NotAllowedError" || fallbackError.name === "PermissionDeniedError") {
+                fallbackDescription = "Camera access was denied. Please enable camera permissions in your browser settings.";
+            }
+            toast({
+                variant: 'destructive',
+                title: 'Camera Access Failed',
+                description: fallbackDescription,
+            });
+            setHasCameraPermission(false);
+            return false;
+        }
+      } else {
+        // If initial error was permission denied, don't try fallback.
+        setHasCameraPermission(false);
+        return false;
+      }
     }
   };
 
@@ -345,7 +380,7 @@ export default function ChatPage() {
   };
 
   const handleCaptureImage = () => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && videoRef.current.readyState >= videoRef.current.HAVE_METADATA) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       canvas.width = video.videoWidth;
@@ -363,6 +398,12 @@ export default function ChatPage() {
         }
         if (videoRef.current) videoRef.current.srcObject = null;
       }
+    } else {
+        toast({
+            title: "Capture Error",
+            description: "Video stream not ready for capture. Please try again.",
+            variant: "destructive"
+        });
     }
   };
   
@@ -386,7 +427,9 @@ export default function ChatPage() {
       }
       if (micPermission === 'prompt') {
         try {
-          await navigator.mediaDevices.getUserMedia({ audio: true }); 
+          // Attempt to get mic permission before starting recognition
+          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true }); 
+          tempStream.getTracks().forEach(track => track.stop()); // Stop the temporary stream
           setMicPermission('granted'); 
           speechRecognitionRef.current?.start();
         } catch (err) {
@@ -479,7 +522,9 @@ export default function ChatPage() {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
-      if (capturedImage) {
+      // Reset attachments only after successful AI response or if intended
+      // setAttachedPdf(null); // Keep PDF if user might want to ask more about it
+      if (capturedImage) { // Always clear captured image after send
         setCapturedImage(null);
         setShowCameraView(false); 
         setIsCapturing(false);
@@ -489,7 +534,10 @@ export default function ChatPage() {
 
   const handleClearChat = () => {
     setMessages([initialGreetingMessage]);
-    toast({ title: 'Chat Cleared', description: 'Your chat history has been cleared.' });
+    setAttachedPdf(null);
+    setCapturedImage(null);
+    setShowCameraView(false);
+    toast({ title: 'Chat Cleared', description: 'Your chat history and attachments have been cleared.' });
   };
 
   const handleDeleteMessage = (messageId: string) => {
@@ -518,7 +566,7 @@ export default function ChatPage() {
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" size="icon" title="Clear Chat History" disabled={messages.length <= 1 && messages[0].id === 'ai-greeting'}>
+                <Button variant="outline" size="icon" title="Clear Chat History" disabled={messages.length <= 1 && messages[0].id === 'ai-greeting' && !attachedPdf && !capturedImage}>
                   <Eraser className="h-5 w-5" />
                 </Button>
               </AlertDialogTrigger>
@@ -526,7 +574,7 @@ export default function ChatPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Clear Chat History?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to clear all messages in this chat? This action cannot be undone.
+                    Are you sure you want to clear all messages and attachments in this chat? This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
