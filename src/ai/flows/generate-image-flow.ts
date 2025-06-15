@@ -26,6 +26,13 @@ export async function generateImage(input: GenerateImageInput): Promise<Generate
   return generateImageFlow(input);
 }
 
+const highlyPermissiveSafetySettings = [
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+];
+
 const generateImageGenkitFlow = ai.defineFlow(
   {
     name: 'generateImageFlow',
@@ -39,6 +46,7 @@ const generateImageGenkitFlow = ai.defineFlow(
         prompt: input.prompt,
         config: {
           responseModalities: ['TEXT', 'IMAGE'], 
+          safetySettings: highlyPermissiveSafetySettings,
         },
       });
 
@@ -52,7 +60,7 @@ const generateImageGenkitFlow = ai.defineFlow(
         console.warn(`[generateImageFlow] Image URL was null for prompt: "${input.prompt}". Model's raw text response (if any): "${text}"`);
         let userFacingMessage = `Sorry, I couldn't generate an image for the prompt: "${input.prompt}".`;
         
-        if (text && (text.toLowerCase().includes("safety") || text.toLowerCase().includes("policy") || text.toLowerCase().includes("unable to create"))) {
+        if (text && (text.toLowerCase().includes("safety") || text.toLowerCase().includes("policy") || text.toLowerCase().includes("unable to create") || text.toLowerCase().includes("cannot generate"))) {
             userFacingMessage += " This may be due to content policies or safety filters. Please try a different prompt.";
         } else {
             userFacingMessage += " Please try a different prompt or rephrase your request.";
