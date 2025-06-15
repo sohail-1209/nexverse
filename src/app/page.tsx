@@ -31,8 +31,8 @@ export default function HomePage() {
             </div>
             <Image
               src="https://imgcdn.stablediffusionweb.com/2024/5/9/ffbe9c53-8cad-4832-9bf2-a819798c1789.jpg"
-              width="500"
-              height="500"
+              width="250"
+              height="250"
               alt="NExVERSE Hero Image - AI generated abstract art"
               className="mx-auto aspect-square overflow-hidden rounded-full object-cover sm:w-full lg:order-last shadow-2xl"
             />
