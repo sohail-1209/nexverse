@@ -71,7 +71,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([initialGreetingMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false); // New state variable
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false); 
   
   const [attachedPdf, setAttachedPdf] = useState<AttachedPdf | null>(null);
   const [isPdfProcessing, setIsPdfProcessing] = useState(false);
@@ -98,7 +98,6 @@ export default function ChatPage() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
   };
   
-  // Effect to load messages from localStorage on initial mount
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
@@ -106,16 +105,12 @@ export default function ChatPage() {
         if (savedMessagesRaw) {
           const parsedMessages: Message[] = JSON.parse(savedMessagesRaw).map((msg: Message) => ({
             ...msg,
-            timestamp: new Date(msg.timestamp), // Convert string timestamp back to Date
+            timestamp: new Date(msg.timestamp), 
           }));
           if (parsedMessages.length > 0) {
             setMessages(parsedMessages);
-          } else {
-             // If localStorage had an empty array, default to greeting (though messages state is already this)
-             // setMessages([initialGreetingMessage]); // This line is not strictly needed if useState initializes correctly
           }
         }
-        // If no saved messages, messages state remains [initialGreetingMessage] from useState
       }
     } catch (error) {
       console.error("Error loading messages from localStorage:", error);
@@ -124,28 +119,23 @@ export default function ChatPage() {
         description: "Could not load previous chat history. Your browser's local storage might be unavailable or corrupted.",
         variant: "destructive",
       });
-      setMessages([initialGreetingMessage]); // Fallback to initial greeting on any error
+      setMessages([initialGreetingMessage]); 
     } finally {
-      setIsHistoryLoaded(true); // Signal that loading attempt is complete
+      setIsHistoryLoaded(true); 
     }
-  }, []); // Empty dependency array, runs once on mount
+  }, []); 
 
-  // Effect to save messages to localStorage whenever messages change, BUT only after initial history load
   useEffect(() => {
     if (!isHistoryLoaded) {
-      // Don't save to localStorage until the initial load from localStorage is complete
       return;
     }
     try {
       if (typeof window !== 'undefined') {
         if (messages.length === 1 && messages[0].id === initialGreetingMessage.id) {
-          // If only the initial greeting message is present, clear the history from localStorage
           localStorage.removeItem(LOCAL_STORAGE_CHAT_KEY);
         } else if (messages.length > 0) { 
-          // Otherwise, save the current messages
           localStorage.setItem(LOCAL_STORAGE_CHAT_KEY, JSON.stringify(messages));
         }
-        // No explicit 'else' for messages.length === 0, as other logic prevents this.
       }
     } catch (error) {
       console.error("Error saving messages to localStorage:", error);
@@ -155,7 +145,7 @@ export default function ChatPage() {
         variant: "destructive",
       });
     }
-  }, [messages, isHistoryLoaded]); // Add isHistoryLoaded to dependency array
+  }, [messages, isHistoryLoaded]);
 
 
   useEffect(() => {
@@ -281,20 +271,53 @@ export default function ChatPage() {
       return false;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // Prefer rear camera (environment) if available
+      const constraints = { 
+        video: { 
+          facingMode: { ideal: "environment" } 
+        } 
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream; 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
       setHasCameraPermission(true);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error accessing camera:', error);
       setHasCameraPermission(false);
+      let description = 'Please enable camera permissions in your browser settings.';
+      if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        description = "No camera found. Please ensure a camera is connected and enabled.";
+      } else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        description = "Camera access denied. Please enable camera permissions in your browser settings.";
+      } else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") {
+        description = "The requested camera (e.g., rear camera) is not available or does not meet criteria. Trying with any available camera.";
+         // Fallback to any camera if specific facingMode fails
+        try {
+            const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            streamRef.current = fallbackStream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = fallbackStream;
+            }
+            setHasCameraPermission(true);
+            toast({
+                title: 'Camera Switched',
+                description: 'Using available camera.',
+            });
+            return true;
+        } catch (fallbackError: any) {
+            console.error('Fallback camera access error:', fallbackError);
+            description = `Could not access any camera. Please check permissions and connections. Error: ${fallbackError.name}`;
+            setHasCameraPermission(false);
+        }
+      }
+
       toast({
         variant: 'destructive',
-        title: 'Camera Access Denied',
-        description: 'Please enable camera permissions in your browser settings.',
+        title: 'Camera Access Error',
+        description: description,
       });
       return false;
     }
@@ -739,3 +762,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
