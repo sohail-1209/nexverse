@@ -34,8 +34,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-const ACCEPTED_FILE_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
-
+// ACCEPTED_FILE_TYPES constant removed as we are allowing all file types
 
 const answerSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }).max(150),
@@ -52,11 +51,8 @@ const answerSchema = z.object({
         .refine(
           (files) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE,
           `Max file size is 100MB.`
-        )
-        .refine(
-          (files) => !files || files.length === 0 || ACCEPTED_FILE_TYPES.includes(files[0].type),
-          "Only .pdf, .doc, .docx, and .txt files are accepted."
         ),
+        // Removed refinement for specific file types
 });
 
 type AnswerFormValues = z.infer<typeof answerSchema>;
@@ -289,12 +285,12 @@ export default function UploadAnswerPage() {
                   <FormControl>
                      <Input 
                         type="file" 
-                        accept=".pdf,.doc,.docx,.txt" 
+                        // accept attribute removed to allow all file types
                         onChange={(e) => onChange(e.target.files)} 
                         {...rest}
                       />
                   </FormControl>
-                  <FormDescription>Upload PDFs, Word documents, or text files (max 100MB).</FormDescription>
+                  <FormDescription>Upload any relevant file (max 100MB).</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -328,4 +324,3 @@ export default function UploadAnswerPage() {
     </Card>
   );
 }
-
