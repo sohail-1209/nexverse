@@ -30,11 +30,10 @@ export default function HomePage() {
               </div>
             </div>
             <Image
-              src="https://placehold.co/500x500.png"
-              data-ai-hint="abstract circle"
+              src="https://imgcdn.stablediffusionweb.com/2024/5/9/ffbe9c53-8cad-4832-9bf2-a819798c1789.jpg"
               width="500"
               height="500"
-              alt="Circular Placeholder Image"
+              alt="NExVERSE Hero Image - AI generated abstract art"
               className="mx-auto aspect-square overflow-hidden rounded-full object-cover sm:w-full lg:order-last shadow-2xl"
             />
           </div>
