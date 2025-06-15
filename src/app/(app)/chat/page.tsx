@@ -182,7 +182,7 @@ export default function ChatPage() {
         });
       }
     }
-  }, [showCameraView, hasCameraPermission, isCapturing]);
+  }, [showCameraView, hasCameraPermission, isCapturing, streamRef]);
 
 
   useEffect(() => {
@@ -289,55 +289,59 @@ export default function ChatPage() {
       setHasCameraPermission(false);
       return false;
     }
-
-    const processStreamAndSetPermission = (stream: MediaStream) => {
-        streamRef.current = stream; 
-        setHasCameraPermission(true); 
-
-        const videoTracks = stream.getVideoTracks();
-        if (videoTracks.length > 0) {
-            const track = videoTracks[0];
-            const settings = track.getSettings();
-            console.log('Camera track settings:', settings);
-            let facingModeToastMessage = 'Camera selected.';
-            if (settings.facingMode) {
-                if (settings.facingMode === 'user') facingModeToastMessage = 'Front camera selected.';
-                else if (settings.facingMode === 'environment') facingModeToastMessage = 'Rear camera selected.';
-                else facingModeToastMessage = `Camera selected (facing mode: ${settings.facingMode}).`;
-            } else {
-                 facingModeToastMessage = `Camera selected (facing mode not reported).`;
-            }
-            toast({ title: 'Camera Active', description: facingModeToastMessage });
+  
+    const processStream = (stream: MediaStream, preferredFacingMode?: string) => {
+      streamRef.current = stream;
+      setHasCameraPermission(true);
+  
+      const videoTracks = stream.getVideoTracks();
+      if (videoTracks.length > 0) {
+        const track = videoTracks[0];
+        const settings = track.getSettings();
+        console.log('Camera track settings:', settings);
+        let facingModeToastMessage = 'Camera selected.';
+        if (settings.facingMode) {
+            if (settings.facingMode === 'user') facingModeToastMessage = 'Front camera selected.';
+            else if (settings.facingMode === 'environment') facingModeToastMessage = 'Rear camera selected.';
+            else facingModeToastMessage = `Camera selected (facing mode: ${settings.facingMode}).`;
+        } else if (preferredFacingMode) {
+             facingModeToastMessage = `Likely ${preferredFacingMode.includes('environment') ? 'rear' : 'front'} camera (facingMode not reported by browser).`;
+        } else {
+             facingModeToastMessage = `Camera selected (facingMode not reported).`;
         }
-        return true; 
+        toast({ title: 'Camera Active', description: facingModeToastMessage });
+      }
+      return true;
     };
-
+  
     try {
       const constraints = { video: { facingMode: { ideal: "environment" } } };
+      console.log("Attempting to get camera with constraints:", JSON.stringify(constraints));
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      return processStreamAndSetPermission(stream);
+      return processStream(stream, "environment");
     } catch (error: any) {
       console.warn('Error accessing ideal (environment) camera:', error.name, error.message);
-      let description = `Could not access the preferred camera (Error: ${error.name}). Trying default camera.`;
-       if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") description = "No camera found. Please ensure a camera is connected and enabled.";
-       else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") description = "Camera access denied. Please enable camera permissions in your browser settings.";
-       else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") description = "The requested camera (e.g., rear camera) is not available. Trying any available camera.";
+      let description = `Could not access the preferred rear camera (Error: ${error.name}). Trying any available camera.`;
+      if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") description = "No rear camera found, or it's unavailable. Trying default camera.";
+      else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") description = "Camera access denied. Please enable camera permissions in your browser settings.";
+      else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") description = "The requested camera (e.g., specific resolution or rear camera) is not available. Trying any available camera.";
       
-      toast({ variant: 'destructive', title: 'Camera Access Issue', description: description });
-
+      toast({ variant: 'destructive', title: 'Rear Camera Issue', description: description });
+  
       if (error.name !== "NotAllowedError" && error.name !== "PermissionDeniedError") {
         try {
-            console.log("Attempting fallback to any camera...");
-            const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            return processStreamAndSetPermission(fallbackStream);
+          console.log("Attempting fallback to any camera...");
+          const fallbackConstraints = { video: true };
+          const fallbackStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+          return processStream(fallbackStream, "any");
         } catch (fallbackError: any) {
-            console.error('Fallback camera access error:', fallbackError.name, fallbackError.message);
-            let fallbackDescription = `Could not access any camera. Error: ${fallbackError.name}. Check permissions and connections.`;
-            if (fallbackError.name === "NotFoundError" || fallbackError.name === "DevicesNotFoundError") fallbackDescription = "No camera found. Ensure a camera is connected and enabled.";
-            else if (fallbackError.name === "NotAllowedError" || fallbackError.name === "PermissionDeniedError") fallbackDescription = "Camera access was denied. Please enable camera permissions.";
-            toast({ variant: 'destructive', title: 'Camera Access Failed', description: fallbackDescription });
-            setHasCameraPermission(false);
-            return false;
+          console.error('Fallback camera access error:', fallbackError.name, fallbackError.message);
+          let fallbackDescription = `Could not access any camera. Error: ${fallbackError.name}. Check permissions and connections.`;
+          if (fallbackError.name === "NotFoundError" || fallbackError.name === "DevicesNotFoundError") fallbackDescription = "No camera found. Ensure a camera is connected and enabled.";
+          else if (fallbackError.name === "NotAllowedError" || fallbackError.name === "PermissionDeniedError") fallbackDescription = "Camera access was denied. Please enable camera permissions.";
+          toast({ variant: 'destructive', title: 'Camera Access Failed', description: fallbackDescription });
+          setHasCameraPermission(false);
+          return false;
         }
       } else {
         setHasCameraPermission(false);
@@ -520,6 +524,8 @@ export default function ChatPage() {
         setShowCameraView(false); 
         setIsCapturing(false);
       }
+      // Keep PDF attached until user removes it or attaches a new one/image
+      // setAttachedPdf(null); 
     }
   };
 
@@ -553,7 +559,7 @@ export default function ChatPage() {
             <div className="flex items-center gap-3">
               <MessageSquareIcon className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle className="font-audiowide text-2xl">NEXI ✨</CardTitle>
+                <CardTitle className="font-audiowide text-2xl font-normal">NEXI ✨</CardTitle>
                 <CardDescription>Ask questions, get summaries, or seek help. Attach PDFs, capture images, or use voice input.</CardDescription>
               </div>
             </div>
@@ -791,3 +797,4 @@ export default function ChatPage() {
     </div>
   );
 }
+
