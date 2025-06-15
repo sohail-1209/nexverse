@@ -63,7 +63,7 @@ const generateImageGenkitFlow = ai.defineFlow(
         if (text && (text.toLowerCase().includes("safety") || text.toLowerCase().includes("policy") || text.toLowerCase().includes("unable to create") || text.toLowerCase().includes("cannot generate"))) {
             userFacingMessage += " This may be due to content policies or safety filters. Please try a different prompt.";
         } else {
-            userFacingMessage += " Please try a different prompt or rephrase your request.";
+            userFacingMessage += " To improve results, try being more descriptive. For example, include details about the subject, style (e.g., 'photorealistic', 'cartoon'), colors, lighting, or composition.";
         }
         return { accompanyingText: userFacingMessage };
       }
@@ -75,9 +75,9 @@ const generateImageGenkitFlow = ai.defineFlow(
       if (errStr.includes('safety') || errStr.includes('policy')) {
         errorMessage = `The image for "${input.prompt}" could not be generated due to content policies or safety filters. Please try a different prompt.`;
       } else if (errStr.includes('model') || errStr.includes('resource exhausted') || errStr.includes('failed to generate')) {
-        errorMessage = `There was an issue with the image generation model or resources for prompt "${input.prompt}". Please try again later or with a different prompt.`;
+        errorMessage = `There was an issue with the image generation model or resources for prompt "${input.prompt}". Please try again later or with a different, more specific prompt.`;
       } else if (error.message) {
-        errorMessage = `Error generating image for "${input.prompt}": ${error.message}`;
+        errorMessage = `Error generating image for "${input.prompt}": ${error.message}. If the issue persists, try making your prompt more specific or rephrasing it.`;
       }
       return { accompanyingText: errorMessage };
     }
