@@ -155,6 +155,7 @@ export default function ChatPage() {
   }, [messages]);
 
   useEffect(() => {
+    // General cleanup for streams and speech recognition
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -164,7 +165,29 @@ export default function ChatPage() {
         speechRecognitionRef.current.stop();
       }
     };
-  }, [isListening]);
+  }, [isListening]); // isListening dependency for speech recognition part
+
+  // Effect to attach stream to video element when conditions are met
+  useEffect(() => {
+    if (showCameraView && hasCameraPermission === true && isCapturing && streamRef.current && videoRef.current) {
+      if (videoRef.current.srcObject !== streamRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        videoRef.current.play().catch(error => {
+          console.error("Error attempting to play video:", error);
+          toast({
+            title: "Video Play Error",
+            description: "Could not automatically play the camera preview.",
+            variant: "destructive"
+          });
+        });
+      }
+    } else if (videoRef.current && videoRef.current.srcObject && (!showCameraView || !isCapturing)) {
+      // If camera view is closed or not capturing, ensure srcObject is cleared
+      // Tracks are stopped by the main cleanup effect or when toggling camera view off
+      // videoRef.current.srcObject = null; // Can be aggressive, rely on track stopping for now
+    }
+  }, [showCameraView, hasCameraPermission, isCapturing]); // streamRef.current is a ref, its content change doesn't trigger effect directly.
+
 
   useEffect(() => {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -271,13 +294,11 @@ export default function ChatPage() {
       return false;
     }
 
-    const processStream = (stream: MediaStream) => {
-        streamRef.current = stream;
-        if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-        }
-        setHasCameraPermission(true);
+    const processStreamAndSetPermission = (stream: MediaStream) => {
+        streamRef.current = stream; // Set the stream to the ref
+        setHasCameraPermission(true); // Indicate permission is granted
 
+        // Log and toast about facingMode (from previous step)
         const videoTracks = stream.getVideoTracks();
         if (videoTracks.length > 0) {
             const track = videoTracks[0];
@@ -285,73 +306,45 @@ export default function ChatPage() {
             console.log('Camera track settings:', settings);
             let facingModeToastMessage = 'Camera selected.';
             if (settings.facingMode) {
-                if (settings.facingMode === 'user') {
-                    facingModeToastMessage = 'Front camera selected.';
-                } else if (settings.facingMode === 'environment') {
-                    facingModeToastMessage = 'Rear camera selected.';
-                } else {
-                    facingModeToastMessage = `Camera selected (facing mode: ${settings.facingMode}).`;
-                }
+                if (settings.facingMode === 'user') facingModeToastMessage = 'Front camera selected.';
+                else if (settings.facingMode === 'environment') facingModeToastMessage = 'Rear camera selected.';
+                else facingModeToastMessage = `Camera selected (facing mode: ${settings.facingMode}).`;
             } else {
                  facingModeToastMessage = `Camera selected (facing mode not reported).`;
             }
-            toast({
-                title: 'Camera Active',
-                description: facingModeToastMessage,
-            });
+            toast({ title: 'Camera Active', description: facingModeToastMessage });
         }
-        return true;
+        return true; // Indicate success
     };
 
     try {
-      const constraints = { 
-        video: { 
-          facingMode: { ideal: "environment" } 
-        } 
-      };
+      const constraints = { video: { facingMode: { ideal: "environment" } } };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      return processStream(stream);
+      return processStreamAndSetPermission(stream);
     } catch (error: any) {
       console.warn('Error accessing ideal (environment) camera:', error.name, error.message);
       let description = `Could not access the preferred camera (Error: ${error.name}). Trying default camera.`;
-       if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        description = "No camera found. Please ensure a camera is connected and enabled.";
-      } else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        description = "Camera access denied. Please enable camera permissions in your browser settings.";
-      } else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") {
-        description = "The requested camera (e.g., rear camera) is not available or does not meet criteria. Trying with any available camera.";
-      }
+       if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") description = "No camera found. Please ensure a camera is connected and enabled.";
+       else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") description = "Camera access denied. Please enable camera permissions in your browser settings.";
+       else if (error.name === "OverconstrainedError" || error.name === "ConstraintNotSatisfiedError") description = "The requested camera (e.g., rear camera) is not available. Trying any available camera.";
+      
+      toast({ variant: 'destructive', title: 'Camera Access Issue', description: description });
 
-      toast({
-        variant: 'destructive',
-        title: 'Camera Access Issue',
-        description: description,
-      });
-
-      // Fallback to any camera if specific facingMode fails or other initial errors
       if (error.name !== "NotAllowedError" && error.name !== "PermissionDeniedError") {
         try {
             console.log("Attempting fallback to any camera...");
             const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            return processStream(fallbackStream);
+            return processStreamAndSetPermission(fallbackStream);
         } catch (fallbackError: any) {
             console.error('Fallback camera access error:', fallbackError.name, fallbackError.message);
-            let fallbackDescription = `Could not access any camera. Error: ${fallbackError.name}. Please check permissions and connections.`;
-             if (fallbackError.name === "NotFoundError" || fallbackError.name === "DevicesNotFoundError") {
-                fallbackDescription = "No camera found. Please ensure a camera is connected and enabled.";
-            } else if (fallbackError.name === "NotAllowedError" || fallbackError.name === "PermissionDeniedError") {
-                fallbackDescription = "Camera access was denied. Please enable camera permissions in your browser settings.";
-            }
-            toast({
-                variant: 'destructive',
-                title: 'Camera Access Failed',
-                description: fallbackDescription,
-            });
+            let fallbackDescription = `Could not access any camera. Error: ${fallbackError.name}. Check permissions and connections.`;
+            if (fallbackError.name === "NotFoundError" || fallbackError.name === "DevicesNotFoundError") fallbackDescription = "No camera found. Ensure a camera is connected and enabled.";
+            else if (fallbackError.name === "NotAllowedError" || fallbackError.name === "PermissionDeniedError") fallbackDescription = "Camera access was denied. Please enable camera permissions.";
+            toast({ variant: 'destructive', title: 'Camera Access Failed', description: fallbackDescription });
             setHasCameraPermission(false);
             return false;
         }
       } else {
-        // If initial error was permission denied, don't try fallback.
         setHasCameraPermission(false);
         return false;
       }
@@ -368,13 +361,18 @@ export default function ChatPage() {
         streamRef.current = null;
       }
       if (videoRef.current) videoRef.current.srcObject = null;
+      setHasCameraPermission(null); // Reset permission status indication
     } else { 
       setAttachedPdf(null); 
-      const permissionGranted = await requestCameraPermission();
+      const permissionGranted = await requestCameraPermission(); // This sets streamRef.current and hasCameraPermission
       if (permissionGranted) {
-        setShowCameraView(true);
+        setShowCameraView(true); 
         setIsCapturing(true); 
         setCapturedImage(null);
+        // The useEffect will now handle attaching stream to videoRef
+      } else {
+        setShowCameraView(false); // Ensure it's off if permission failed
+        setIsCapturing(false);
       }
     }
   };
@@ -409,6 +407,11 @@ export default function ChatPage() {
   
   const handleRemoveCapturedImage = () => {
     setCapturedImage(null);
+    // If we want to allow re-opening camera directly after removing image,
+    // we might need to call handleToggleCameraView() or similar logic to re-initiate camera.
+    // For now, removing image just clears it. User can click camera button again.
+    setShowCameraView(false); // Or keep it true if we want to allow immediate re-capture
+    setIsCapturing(false);
   };
 
   const handleToggleListening = async () => {
@@ -427,9 +430,8 @@ export default function ChatPage() {
       }
       if (micPermission === 'prompt') {
         try {
-          // Attempt to get mic permission before starting recognition
           const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true }); 
-          tempStream.getTracks().forEach(track => track.stop()); // Stop the temporary stream
+          tempStream.getTracks().forEach(track => track.stop()); 
           setMicPermission('granted'); 
           speechRecognitionRef.current?.start();
         } catch (err) {
@@ -522,13 +524,12 @@ export default function ChatPage() {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
-      // Reset attachments only after successful AI response or if intended
-      // setAttachedPdf(null); // Keep PDF if user might want to ask more about it
-      if (capturedImage) { // Always clear captured image after send
+      if (capturedImage) { 
         setCapturedImage(null);
         setShowCameraView(false); 
         setIsCapturing(false);
       }
+      // setAttachedPdf(null); // Keep PDF unless explicitly cleared by user
     }
   };
 
@@ -537,6 +538,8 @@ export default function ChatPage() {
     setAttachedPdf(null);
     setCapturedImage(null);
     setShowCameraView(false);
+    setIsCapturing(false);
+    setHasCameraPermission(null);
     toast({ title: 'Chat Cleared', description: 'Your chat history and attachments have been cleared.' });
   };
 
@@ -687,7 +690,9 @@ export default function ChatPage() {
                 </Alert>
             </CardFooter>
         )}
-        {showCameraView && hasCameraPermission && isCapturing && (
+        
+        {/* Camera Preview and Capture UI */}
+        {showCameraView && hasCameraPermission === true && isCapturing && (
             <CardFooter className="border-t p-4 flex-col gap-2">
                 <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
                 <div className="flex gap-2 w-full">
@@ -699,6 +704,7 @@ export default function ChatPage() {
             </CardFooter>
         )}
 
+        {/* Main Input Area - shown when not actively capturing with camera */}
         {!isCapturing && ( 
             <CardFooter className="border-t pt-4 pb-4 flex-col items-start gap-2">
             {attachedPdf && !showCameraView && ( 
@@ -713,7 +719,7 @@ export default function ChatPage() {
                 </Button>
                 </div>
             )}
-            {capturedImage && !isCapturing && ( 
+            {capturedImage && !isCapturing && ( // Show preview if image captured, not currently in live capture mode
                 <div className="w-full p-2 bg-muted rounded-md text-sm">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 text-muted-foreground">
@@ -728,80 +734,69 @@ export default function ChatPage() {
                 </div>
             )}
 
-            {!showCameraView && ( 
+            {/* Input form, shown if not in live camera view OR if image is captured and ready to send */}
+            {(!showCameraView || (showCameraView && capturedImage && !isCapturing)) && ( 
                 <form onSubmit={handleSendMessage} className="flex w-full items-center gap-3">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isLoading || isPdfProcessing || showCameraView || isListening}
-                        title="Attach PDF"
-                    >
-                    <Paperclip className="h-5 w-5" />
-                    <span className="sr-only">Attach PDF</span>
-                    </Button>
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        accept=".pdf"
-                        className="hidden"
-                        disabled={isLoading || isPdfProcessing || showCameraView || isListening}
-                    />
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={handleToggleCameraView}
-                        disabled={isLoading || isPdfProcessing || isListening}
-                        title={showCameraView ? "Close Camera" : "Open Camera"}
-                    >
-                    <Camera className="h-5 w-5" />
-                    <span className="sr-only">{showCameraView ? "Close Camera" : "Open Camera"}</span>
-                    </Button>
-                     <Button
-                        type="button"
-                        variant={isListening ? "destructive" : "outline"}
-                        size="icon"
-                        onClick={handleToggleListening}
-                        disabled={isLoading || isPdfProcessing || showCameraView || !speechApiSupported}
-                        title={isListening ? "Stop Listening" : "Start Voice Input"}
-                    >
-                        {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                        <span className="sr-only">{isListening ? "Stop Listening" : "Start Voice Input"}</span>
-                    </Button>
+                    {/* Attachments and Mic only if not showing camera or if an image is already captured */}
+                    {!showCameraView && (
+                      <>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isLoading || isPdfProcessing || isListening}
+                            title="Attach PDF"
+                        >
+                            <Paperclip className="h-5 w-5" />
+                            <span className="sr-only">Attach PDF</span>
+                        </Button>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            accept=".pdf"
+                            className="hidden"
+                            disabled={isLoading || isPdfProcessing || isListening}
+                        />
+                         <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={handleToggleCameraView}
+                            disabled={isLoading || isPdfProcessing || isListening}
+                            title="Open Camera"
+                        >
+                            <Camera className="h-5 w-5" />
+                            <span className="sr-only">Open Camera</span>
+                        </Button>
+                        <Button
+                            type="button"
+                            variant={isListening ? "destructive" : "outline"}
+                            size="icon"
+                            onClick={handleToggleListening}
+                            disabled={isLoading || isPdfProcessing || !speechApiSupported}
+                            title={isListening ? "Stop Listening" : "Start Voice Input"}
+                        >
+                            {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                            <span className="sr-only">{isListening ? "Stop Listening" : "Start Voice Input"}</span>
+                        </Button>
+                      </>
+                    )}
                     <Input
                         type="text"
-                        placeholder={isListening ? "Listening..." : "Type your message..."}
+                        placeholder={isListening ? "Listening..." : (capturedImage ? "Add a query for the image..." : "Type your message...")}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        disabled={isLoading || isPdfProcessing || (showCameraView && isCapturing)}
+                        disabled={isLoading || isPdfProcessing}
                         className="flex-grow"
                         autoComplete="off"
                     />
-                    <Button type="submit" size="icon" disabled={isLoading || isPdfProcessing || (showCameraView && isCapturing) || (!input.trim() && !attachedPdf && !capturedImage)}>
-                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                    <span className="sr-only">Send</span>
+                    <Button type="submit" size="icon" disabled={isLoading || isPdfProcessing || (!input.trim() && !attachedPdf && !capturedImage)}>
+                        {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                        <span className="sr-only">Send</span>
                     </Button>
                 </form>
-            )}
-            {showCameraView && capturedImage && !isCapturing && ( 
-                 <form onSubmit={handleSendMessage} className="flex w-full items-center gap-3 mt-2">
-                    <Input
-                        type="text"
-                        placeholder="Type your query about the image..."
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        disabled={isLoading}
-                        className="flex-grow"
-                        autoComplete="off"
-                    />
-                    <Button type="submit" size="icon" disabled={isLoading || (!input.trim() && !capturedImage)}>
-                        {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                        <span className="sr-only">Send with Image</span>
-                    </Button>
-                 </form>
             )}
             </CardFooter>
         )}
