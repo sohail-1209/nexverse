@@ -30,7 +30,7 @@ const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, // Directly use the env variable
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
@@ -119,17 +119,24 @@ export const initializeFirebaseMessaging = async (showToast: (options: { title: 
     if (permission === 'granted') {
       console.log('[NExVERSE FCM] Notification permission granted by user.');
 
-      const VAPID_KEY_PLACEHOLDER = "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE";
-      const VAPID_KEY = "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE"; // User needs to replace this manually
+      // =========================================================================================
+      // IMPORTANT: REPLACE THE PLACEHOLDER BELOW WITH YOUR ACTUAL PUBLIC VAPID KEY.
+      // You can find this key in your Firebase project settings:
+      // Firebase Console -> Project Settings (gear icon) -> Cloud Messaging tab
+      // Under "Web configuration", find "Web Push certificates" and copy the "Key pair" (it's the public key).
+      // =========================================================================================
+      const VAPID_KEY_PLACEHOLDER_TEXT = "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE_GOES_HERE";
+      const VAPID_KEY = VAPID_KEY_PLACEHOLDER_TEXT; // PASTE YOUR KEY HERE, REPLACING VAPID_KEY_PLACEHOLDER_TEXT
 
-      if (VAPID_KEY === VAPID_KEY_PLACEHOLDER) {
-        console.warn("[NExVERSE FCM] CRITICAL: VAPID Key for FCM is not set in src/lib/firebase.ts. It's still the placeholder. Push notifications WILL NOT WORK. Please generate a VAPID key in Firebase Console (Project Settings > Cloud Messaging > Web Push certificates) and replace the placeholder string with your actual public VAPID key.");
+      if (VAPID_KEY === VAPID_KEY_PLACEHOLDER_TEXT) {
+        const warningMessage = "[NExVERSE FCM] CRITICAL: VAPID Key for FCM is not set in src/lib/firebase.ts. It's still the placeholder. Push notifications WILL NOT WORK. Please generate/find your VAPID key in Firebase Console (Project Settings > Cloud Messaging > Web Push certificates) and replace the placeholder string in the code with your actual public VAPID key.";
+        console.warn(warningMessage);
         showToast({
-          title: "Push Notification Setup Incomplete",
-          description: "Administrator: The VAPID key for push notifications is missing. Please set it in the Firebase configuration (src/lib/firebase.ts) to enable notifications.",
+          title: "Push Notification Setup Incomplete (Admin Action Required)",
+          description: "The VAPID key for push notifications is missing in the configuration. Please contact the site administrator or set it in src/lib/firebase.ts to enable notifications.",
           variant: "destructive",
         });
-        return null; // Do not proceed to getFCMToken if VAPID key is the placeholder
+        return null;
       }
       
       console.log("[NExVERSE FCM] Attempting to get FCM token with VAPID key set.");
@@ -142,7 +149,6 @@ export const initializeFirebaseMessaging = async (showToast: (options: { title: 
         if (auth.currentUser) {
           const userDocRef = doc(db, 'users', auth.currentUser.uid);
           try {
-             // Check if user document exists before attempting to update
             const userDocSnap = await getDoc(userDocRef);
             if (userDocSnap.exists()) {
                 console.log(`[NExVERSE FCM] User document for UID ${auth.currentUser.uid} found. Updating with FCM token.`);
@@ -158,7 +164,7 @@ export const initializeFirebaseMessaging = async (showToast: (options: { title: 
                     email: auth.currentUser.email,
                     displayName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "Anonymous User",
                     photoURL: auth.currentUser.photoURL || null,
-                    role: 'user', // Default role
+                    role: 'user', 
                     fcmTokens: [currentToken],
                     createdAt: serverTimestamp(),
                     lastFcmTokenUpdate: serverTimestamp()
@@ -187,7 +193,7 @@ export const initializeFirebaseMessaging = async (showToast: (options: { title: 
     if (err.name === 'FirebaseError') {
         if (err.code === 'messaging/failed-serviceworker-registration') {
             errorDesc = "Push notification service worker registration failed. Ensure 'firebase-messaging-sw.js' is in your public directory and correctly configured.";
-        } else if (err.code === 'messaging/invalid-vapid-key' || err.code === 'messaging/invalid-app-server-key' || (err.message && err.message.toLowerCase().includes("applicationServerKey")) ) {
+        } else if (err.code === 'messaging/invalid-vapid-key' || err.code === 'messaging/invalid-app-server-key' || (err.message && err.message.toLowerCase().includes("applicationserverkey")) ) {
             errorDesc = "The VAPID key for push notifications is invalid or missing. Please check it in src/lib/firebase.ts.";
         } else if (err.message && err.message.toLowerCase().includes("permission")) {
             errorDesc = "Permission denied for notifications or an issue with service worker registration. Check browser console."
