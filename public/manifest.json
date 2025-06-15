@@ -1,11 +1,7 @@
 {
-  "name": "NExVERSE - Your Exam Companion",
+  "name": "NExVERSE",
   "short_name": "NExVERSE",
-  "description": "Organize, share, and discover exam answers with NExVERSE, powered by AI.",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#F5F7FA",
-  "theme_color": "#33ADFF",
+  "description": "Your ultimate companion for exam preparation, powered by AI.",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
@@ -14,10 +10,20 @@
       "purpose": "any maskable"
     },
     {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
-  ]
+  ],
+  "theme_color": "#33ADFF",
+  "background_color": "#23395d",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "orientation": "portrait",
+  "gcm_sender_id": "103953800507"
 }
