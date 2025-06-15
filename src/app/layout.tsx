@@ -8,7 +8,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from 'next-themes';
 import { GlobalAuthRedirect } from '@/components/layout/global-auth-redirect';
-import { Inter, Poppins, Michroma, Audiowide } from 'next/font/google'; // Added Audiowide
+import { Inter, Poppins, Michroma, Audiowide } from 'next/font/google';
 
 // Define fonts
 const inter = Inter({
@@ -31,9 +31,9 @@ const michroma = Michroma({
   display: 'swap',
 });
 
-const audiowide = Audiowide({ // Added Audiowide font configuration
+const audiowide = Audiowide({
   subsets: ['latin'],
-  weight: ['400'], // Audiowide is typically available in regular (400) weight
+  weight: ['400'],
   variable: '--font-audiowide',
   display: 'swap',
 });
@@ -42,7 +42,7 @@ const audiowide = Audiowide({ // Added Audiowide font configuration
 export const metadata: Metadata = {
   title: 'NExVERSE - Your Exam Companion',
   description: 'Organize, share, and discover exam answers with NExVERSE.',
-  manifest: '/manifest.json', 
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -51,7 +51,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${poppins.variable} ${michroma.variable} ${audiowide.variable}`}> {/* Added audiowide.variable */}
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${poppins.variable} ${michroma.variable} ${audiowide.variable}`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#33ADFF" />
