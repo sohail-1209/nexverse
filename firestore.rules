@@ -1,0 +1,115 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check for admin role
+    function isAdmin() {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Helper function to check if the user is the owner of a document (identified by docUserId)
+    function isOwner(docUserId) {
+      return isAuthenticated() && request.auth.uid == docUserId;
+    }
+
+    // Helper function to check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.uid == userId; // User can create their own doc
+      allow update: if isOwner(userId)
+                     // Prevent user from changing their role or uid
+                     && !("role" in request.resource.data && request.resource.data.role != resource.data.role)
+                     && request.resource.data.uid == resource.data.uid;
+
+      // Bookmarks subcollection
+      match /bookmarks/{bookmarkId} {
+        allow read, write: if isOwner(userId); // CRUD for own bookmarks
+      }
+
+      // Notifications subcollection
+      match /notifications/{notificationId} {
+        // User can read their own notifications.
+        allow read: if isOwner(userId);
+        // User can update their own notifications (e.g., mark as read).
+        // For 'create', it's generally better if backend creates notifications.
+        // 'write' here allows update and delete.
+        allow update, delete: if isOwner(userId);
+      }
+    }
+
+    // Subjects collection
+    match /subjects/{subjectId} {
+      allow read: if true; // Anyone can read subjects
+      // Only admins can create, update, delete subjects
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Answers collection
+    match /answers/{answerId} {
+      allow read: if true; // Anyone can read answers
+
+      // Authenticated users can create answers, ensuring they set themselves as the author
+      // and cannot set 'isVerified' to true.
+      allow create: if isAuthenticated()
+                     && isOwner(request.resource.data.userId)
+                     && request.resource.data.isVerified == false
+                     && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 150
+                     && request.resource.data.subjectId is string && request.resource.data.subjectId.size() > 0
+                     && request.resource.data.category is string && request.resource.data.category.size() > 0
+                     && request.resource.data.type is string && request.resource.data.type.size() > 0
+                     && request.resource.data.content is string && request.resource.data.content.size() >= 50
+                     && request.resource.data.authorName is string
+                     && request.resource.data.userId == request.auth.uid
+                     && (!("fileName" in request.resource.data) || request.resource.data.fileName is string)
+                     && (!("fileURL" in request.resource.data) || request.resource.data.fileURL is string)
+                     && request.resource.data.tags is list
+                     && request.resource.data.createdAt == request.time
+                     && request.resource.data.views == 0
+                     && request.resource.data.likeCount == 0
+                     && request.resource.data.dislikeCount == 0
+                     && request.resource.data.likedBy is list && request.resource.data.likedBy.size() == 0
+                     && request.resource.data.dislikedBy is list && request.resource.data.dislikedBy.size() == 0
+                     ;
+
+      // Author can update their own answer (but not 'isVerified' field directly or critical fields like userId).
+      // Admin can update any answer, including 'isVerified'.
+      allow update: if isAuthenticated() &&
+                     (
+                       (isOwner(resource.data.userId)
+                        && request.resource.data.userId == resource.data.userId // Cannot change owner
+                        && request.resource.data.authorName == resource.data.authorName // Cannot change authorName
+                        && request.resource.data.subjectId == resource.data.subjectId // Cannot change subject (for now, could be allowed)
+                        && (!("isVerified" in request.resource.data) || request.resource.data.isVerified == resource.data.isVerified) // Cannot change verification status
+                       ) ||
+                       isAdmin() // Admin can update any field
+                     );
+
+      // Author or admin can delete
+      allow delete: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
+
+      // Comments subcollection for an answer
+      match /comments/{commentId} {
+        allow read: if true; // Anyone can read comments
+        // Authenticated users can create comments, ensuring they set themselves as the author
+        allow create: if isAuthenticated()
+                       && isOwner(request.resource.data.userId)
+                       && request.resource.data.text is string && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+                       && request.resource.data.authorName is string
+                       && request.resource.data.userId == request.auth.uid
+                       && request.resource.data.createdAt == request.time;
+
+        // Comments are generally not updated by users. If needed, add rule for author/admin.
+        // allow update: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
+        // Author or admin can delete their/any comment
+        allow delete: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
+      }
+    }
+  }
+}
