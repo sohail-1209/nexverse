@@ -190,12 +190,17 @@ export default function NotificationsPage() {
             </div>
             {notifications.length > 0 && (
               <div className="flex gap-2 mt-4 md:mt-0">
-                <Button onClick={handleMarkAllAsRead} variant="outline" size="sm" disabled={notifications.filter(n => !n.isRead).length === 0}>
+                <Button 
+                  onClick={handleMarkAllAsRead} 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={notifications.filter(n => !n.isRead).length === 0}
+                >
                   <ListChecks className="mr-2 h-4 w-4" /> Mark all as read
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm">
+                    <Button variant="destructive" size="sm" disabled={notifications.length === 0}>
                       <Trash2 className="mr-2 h-4 w-4" /> Clear all
                     </Button>
                   </AlertDialogTrigger>
