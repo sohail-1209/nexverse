@@ -57,7 +57,7 @@ interface SelectedImage {
 const LOCAL_STORAGE_CHAT_KEY = 'nexverseChatMessages';
 const initialGreetingMessage: Message = { 
   id: 'ai-greeting', 
-  text: "Hello! I'm NEXI ✨, your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, upload an image from your device, capture an image with your camera, or use voice input. I can also research online for you! To generate an image, type `/imagine <your prompt>`. You can also upload an image and then use `/imagine <instructions>` to modify it (e.g., `/imagine apply Ghibli art style`). For specific artistic styles, try to be very descriptive.", 
+  text: "Hello! I'm NEXI ✨, your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, upload an image from your device, capture an image with your camera, or use voice input. I can also research online for you! \n\nTo generate an image from text, type `/imagine <your prompt>` (e.g., `/imagine a futuristic car`).\nTo modify an uploaded/captured image, first attach it, then type `/imagine <instructions for modification>` (e.g., `/imagine apply Ghibli art style to this image`, or `/imagine make this person wear a hat`). For specific artistic styles, try to be very descriptive (e.g., 'Studio Ghibli style, soft lighting, vibrant pastoral background').", 
   sender: 'ai', 
   timestamp: new Date() 
 };
@@ -546,7 +546,7 @@ export default function ChatPage() {
         const promptForImage = imageCommandMatch[2];
         const imageGenInput: GenerateImageInput = { 
             prompt: promptForImage,
-            inputImageDataUri: finalImageDataUri, // Pass attached image if present
+            inputImageDataUri: finalImageDataUri, 
         };
         const imageResult: GenerateImageOutput = await generateImage(imageGenInput);
         aiText = imageResult.accompanyingText || (imageResult.imageDataUri ? "Here is the image you requested:" : "Could not generate image for that prompt.");
@@ -595,7 +595,7 @@ export default function ChatPage() {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
-      clearAllAttachments(); // Clear attachments after message is processed
+      clearAllAttachments(); 
     }
   };
 

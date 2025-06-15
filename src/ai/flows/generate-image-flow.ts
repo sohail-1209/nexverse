@@ -69,8 +69,13 @@ const generateImageGenkitFlow = ai.defineFlow(
       if (media?.url) { // Image successfully generated
         let finalAccompanyingText = text || `Successfully generated image for: "${input.prompt}"`;
         // Consistently add the refinement tip, especially if input image was used
-        const tipPrefix = input.inputImageDataUri ? "If this modification isn't quite right" : "If this isn't quite what you wanted";
-        finalAccompanyingText += `\n\n💡 Tip: ${tipPrefix} (e.g., for styles like 'Ghibli art'), try refining your prompt. Be more descriptive about specific visual elements, characters, mood, color palettes, or even mention key artists or works that inspire the style. For image modifications, clearly state the desired changes.`;
+        const tipPrefix = input.inputImageDataUri 
+            ? "If this modification isn't quite right" 
+            : "If this isn't quite what you wanted";
+        const tipSuffix = input.inputImageDataUri
+            ? "try refining your prompt. Be very clear about *how* you want the input image changed (e.g., 'apply Ghibli art style to this character', 'change the background to a jungle scene for this person', 'make this person smile'). For styles, mention specific visual elements, mood, or artists."
+            : "try refining your prompt. Be more descriptive about specific visual elements, characters, mood, color palettes, or even mention key artists or works that inspire the style.";
+        finalAccompanyingText += `\n\n💡 Tip: ${tipPrefix}, ${tipSuffix}`;
         return { 
           imageDataUri: media.url, 
           accompanyingText: finalAccompanyingText
@@ -86,18 +91,25 @@ const generateImageGenkitFlow = ai.defineFlow(
         const modelTextLower = text?.toLowerCase() || "";
         if (modelTextLower.includes("safety") || modelTextLower.includes("policy") || modelTextLower.includes("unable to create an image") || modelTextLower.includes("cannot generate an image") || modelTextLower.includes("can't generate images of real people")) {
             userFacingMessage += " This may be due to content policies or safety filters, especially for prompts involving real people or specific depictions. Please try a different prompt.";
-        } else if (text && text.trim() !== "" && !text.toLowerCase().includes("i am unable to create an image")) { // Model provided some text but no image, and it's not a generic "I can't make images"
+        } else if (text && text.trim() !== "" && !text.toLowerCase().includes("i am unable to create an image")) { 
             userFacingMessage += " The model described an image or process but didn't produce one. This can happen with complex or ambiguous requests, or if the input image couldn't be processed as requested.";
-            // Truncate model's text to avoid overly long messages
             const textSnippet = text.length > 200 ? text.substring(0, 200) + "..." : text;
             userFacingMessage += `\n\nModel's attempt/description: "${textSnippet}"`;
-            userFacingMessage += "\n\nTo improve results, try being more descriptive or rephrasing. For example, detail the subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, lighting, composition, and specific artists or inspirations if relevant. If modifying an image, clearly describe the desired changes.";
-        } else { // No image, no useful text from model
-            userFacingMessage += " To improve results, try being more descriptive. For example, include details about the subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, lighting, composition, and specific artists or inspirations if relevant. If you provided an input image, ensure it's clear and the instructions are feasible.";
+            
+            const improvementSuggestion = input.inputImageDataUri
+                ? "To improve results, try rephrasing your instructions to be very clear about how the *input image* should be modified (e.g., 'apply photorealistic style to this image', 'change the character's expression to happy in this photo', 'render this scene in a Ghibli art style'). Detail the subject, desired style, colors, lighting, and composition."
+                : "To improve results, try being more descriptive or rephrasing. For example, detail the subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, lighting, composition, and specific artists or inspirations if relevant.";
+            userFacingMessage += `\n\n${improvementSuggestion}`;
+
+        } else { 
+            const improvementSuggestion = input.inputImageDataUri
+                ? "To improve results, try rephrasing. Ensure your instructions clearly state how to modify the *provided image* (e.g., 'transform this image into a watercolor painting', 'add a futuristic background to this photo'). Be specific about the subject, style, colors, mood, lighting, and composition."
+                : "To improve results, try being more descriptive. For example, include details about the subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, lighting, composition, and specific artists or inspirations if relevant.";
+            userFacingMessage += ` ${improvementSuggestion}`;
         }
         return { accompanyingText: userFacingMessage };
       }
-    } catch (error: any) { // Catch block for network errors or other unexpected issues
+    } catch (error: any) { 
       console.error(`[generateImageFlow] Error during image generation for prompt "${input.prompt}":`, error);
       let errorMessage = `An unexpected error occurred while trying to generate an image for: "${input.prompt}".`;
       
@@ -109,7 +121,12 @@ const generateImageGenkitFlow = ai.defineFlow(
       } else if (error.message) {
         errorMessage = `Error generating image for "${input.prompt}": ${error.message}.`;
       }
-      errorMessage += " If the issue persists, try making your prompt more specific (e.g., detail the style, subject, colors, mood) or rephrasing it. If using an input image, ensure it's compatible with the requested modification.";
+      
+      const tipForError = input.inputImageDataUri
+        ? "If the issue persists, try making your prompt more specific about how to modify the input image (e.g., 'apply X style to this image', 'change background to Y') or ensure the input image is clear and compatible."
+        : "If the issue persists, try making your prompt more specific (e.g., detail the style, subject, colors, mood) or rephrasing it.";
+      errorMessage += ` ${tipForError}`;
+      
       return { accompanyingText: errorMessage };
     }
   }
