@@ -34,7 +34,6 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
-// ACCEPTED_FILE_TYPES constant removed as we are allowing all file types
 
 const answerSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters.' }).max(150),
@@ -43,16 +42,20 @@ const answerSchema = z.object({
   type: z.string().min(1, { message: 'Please select an answer type/mark.' }),
   content: z.string().min(50, { message: 'Answer content must be at least 50 characters.' }),
   tags: z.string().optional().describe('Comma-separated tags'),
-  file: typeof window === 'undefined' 
-    ? z.any().optional() 
+  file: typeof window === 'undefined'
+    ? z.any().optional()
     : z.instanceof(FileList)
         .optional()
         .nullable()
         .refine(
-          (files) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE,
+          (files) => {
+            if (!files || files.length === 0) {
+              return true; 
+            }
+            return files[0].size <= MAX_FILE_SIZE; 
+          },
           `Max file size is 100MB.`
         ),
-        // Removed refinement for specific file types
 });
 
 type AnswerFormValues = z.infer<typeof answerSchema>;
@@ -129,8 +132,8 @@ export default function UploadAnswerPage() {
 
       const answerData = {
         title: values.title,
-        subjectId: values.subject, // This is the ID from 'subjects' collection
-        subjectName: selectedSubject ? selectedSubject.name : 'Unknown Subject', 
+        subjectId: values.subject, 
+        subjectName: selectedSubject ? selectedSubject.name : 'Unknown Subject',
         category: values.category,
         type: values.type,
         content: values.content,
@@ -139,17 +142,17 @@ export default function UploadAnswerPage() {
         authorName: user.displayName || user.email,
         authorAvatar: user.photoURL || null,
         createdAt: serverTimestamp(),
-        isVerified: false, 
+        isVerified: false,
         views: 0,
         likes: 0,
         fileURL: fileURL,
         fileName: fileName,
       };
-      
+
       const docRef = await addDoc(collection(db, 'answers'), answerData);
-      
+
       toast({ title: 'Answer Uploaded!', description: 'Your answer has been submitted successfully.' });
-      router.push(`/answers/${docRef.id}?subject=${answerData.subjectId}`); 
+      router.push(`/answers/${docRef.id}?subject=${answerData.subjectId}`);
     } catch (error) {
       console.error('Upload failed:', error);
       toast({ title: 'Upload Failed', description: 'Could not submit your answer. Please try again.', variant: 'destructive' });
@@ -275,19 +278,18 @@ export default function UploadAnswerPage() {
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="file"
-              render={({ field: { onChange, value, ...rest } }) => ( 
+              render={({ field: { onChange, value: _value, ...rest } }) => ( // Renamed value to _value
                 <FormItem>
                   <FormLabel>Attach File (Optional)</FormLabel>
                   <FormControl>
-                     <Input 
-                        type="file" 
-                        // accept attribute removed to allow all file types
-                        onChange={(e) => onChange(e.target.files)} 
-                        {...rest}
+                     <Input
+                        type="file"
+                        onChange={(e) => onChange(e.target.files)}
+                        {...rest} // _value (original field.value) is not spread here
                       />
                   </FormControl>
                   <FormDescription>Upload any relevant file (max 100MB).</FormDescription>
