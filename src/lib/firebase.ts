@@ -20,7 +20,7 @@ if (typeof window !== 'undefined') {
   console.log(`[NExVERSE Firebase Client] API Key Loaded (NEXT_PUBLIC_FIREBASE_API_KEY): ${process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'YES' : 'NO - CRITICAL!'}`);
   console.log(`[NExVERSE Firebase Client] Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN): ${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'NOT LOADED - CRITICAL FOR AUTH!'}`);
   console.log(`[NExVERSE Firebase Client] Project ID (NEXT_PUBLIC_FIREBASE_PROJECT_ID): ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'NOT LOADED - CRITICAL!'}`);
-  console.log(`[NExVERSE Firebase Client] Storage Bucket (NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET): ${process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'NOT LOADED'}`);
+  console.log(`[NExVERSE Firebase Client] Storage Bucket from ENV (NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET): ${process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'NOT LOADED - CHECK BUCKET NAME!'}`);
   console.log(`[NExVERSE Firebase Client] Messaging Sender ID (NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID): ${process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || 'NOT LOADED - NEEDED FOR FCM'}`);
   console.log(`[NExVERSE Firebase Client] App ID (NEXT_PUBLIC_FIREBASE_APP_ID): ${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'NOT LOADED'}`);
   console.log(`[NExVERSE Firebase Client] Measurement ID (NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID): ${process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'NOT LOADED (optional)'}`);
@@ -30,7 +30,7 @@ const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, // Directly use the env variable
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
@@ -42,7 +42,7 @@ if (typeof window === 'undefined') {
   console.log(`[NExVERSE Firebase Server] API Key from env: ${firebaseConfig.apiKey ? 'Exists' : 'MISSING - CRITICAL!'}`);
   console.log(`[NExVERSE Firebase Server] Auth Domain from env: ${firebaseConfig.authDomain || 'MISSING - CRITICAL FOR AUTH!'}`);
   console.log(`[NExVERSE Firebase Server] Project ID from env: ${firebaseConfig.projectId || 'MISSING - CRITICAL!'}`);
-  console.log(`[NExVERSE Firebase Server] Storage Bucket from env: ${firebaseConfig.storageBucket || 'MISSING'}`);
+  console.log(`[NExVERSE Firebase Server] Storage Bucket from env: ${firebaseConfig.storageBucket || 'MISSING - CHECK BUCKET NAME!'}`);
   console.log(`[NExVERSE Firebase Server] Messaging Sender ID from env: ${firebaseConfig.messagingSenderId || 'MISSING - NEEDED FOR FCM'}`);
   console.log(`[NExVERSE Firebase Server] App ID from env: ${firebaseConfig.appId || 'MISSING'}`);
   console.log(`[NExVERSE Firebase Server] Measurement ID from env: ${firebaseConfig.measurementId || 'MISSING (optional)'}`);
@@ -60,8 +60,8 @@ let messaging: any = null; // Firebase Messaging instance, use 'any' to avoid ty
 
 if (!getApps().length) {
   try {
-    if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.messagingSenderId) {
-      const errorMsg = '[Firebase Init Error] Firebase API Key, Project ID, or Messaging Sender ID is missing from environment variables. Cannot initialize Firebase fully. This usually means the corresponding secrets were not found or accessible by App Hosting. Please check Google Secret Manager for your project and ensure the secrets exist, have values, and that the App Hosting service account has "Secret Manager Secret Accessor" permissions.';
+    if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.messagingSenderId || !firebaseConfig.storageBucket) {
+      const errorMsg = '[Firebase Init Error] Firebase API Key, Project ID, Storage Bucket, or Messaging Sender ID is missing from environment variables. Cannot initialize Firebase fully. This usually means the corresponding secrets were not found or accessible by App Hosting. Please check Google Secret Manager for your project and ensure the secrets exist, have values, and that the App Hosting service account has "Secret Manager Secret Accessor" permissions.';
       console.error(errorMsg);
     }
     app = initializeApp(firebaseConfig);
@@ -98,86 +98,104 @@ const db: Firestore = getFirestore(app);
 
 
 export const initializeFirebaseMessaging = async (showToast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void) => {
+  console.log("[NExVERSE FCM] Attempting to initialize Firebase Messaging...");
   const supported = await isFcmSupported();
   if (!supported || typeof window === 'undefined') {
-    console.log("Firebase Messaging is not supported in this browser/environment.");
+    console.log("[NExVERSE FCM] Firebase Messaging is not supported in this browser/environment.");
     return null;
   }
 
   if (!messaging) { // Initialize only once
      // @ts-ignore
     messaging = getMessaging(app);
+     console.log("[NExVERSE FCM] Messaging service initialized.");
   }
 
   try {
+    console.log("[NExVERSE FCM] Requesting notification permission...");
     const permission = await Notification.requestPermission();
+    console.log("[NExVERSE FCM] Notification.requestPermission() result:", permission);
+
     if (permission === 'granted') {
-      console.log('Notification permission granted.');
+      console.log('[NExVERSE FCM] Notification permission granted by user.');
 
-      // IMPORTANT: Replace with your VAPID key from Firebase Console
-      // Project settings > Cloud Messaging > Web Push certificates > Generate Key pair
-      // The VAPID key is a public key and is safe to include in client-side code.
-      const VAPID_KEY = "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE"; // REPLACE THIS
-      if (VAPID_KEY === "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE") {
-        console.warn("VAPID Key for FCM is not set in firebase.ts. Push notifications might not work correctly. Please generate one in Firebase Console > Project Settings > Cloud Messaging > Web Push certificates and add it here.");
-        showToast({ title: "FCM Setup Incomplete", description: "Push notifications may not work. Administrator: Please set the VAPID key in src/lib/firebase.ts.", variant: "destructive"});
+      const VAPID_KEY_PLACEHOLDER = "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE";
+      const VAPID_KEY = "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE"; // User needs to replace this manually
+
+      if (VAPID_KEY === VAPID_KEY_PLACEHOLDER) {
+        console.warn("[NExVERSE FCM] CRITICAL: VAPID Key for FCM is not set in src/lib/firebase.ts. It's still the placeholder. Push notifications WILL NOT WORK. Please generate a VAPID key in Firebase Console (Project Settings > Cloud Messaging > Web Push certificates) and replace the placeholder string with your actual public VAPID key.");
+        showToast({
+          title: "Push Notification Setup Incomplete",
+          description: "Administrator: The VAPID key for push notifications is missing. Please set it in the Firebase configuration (src/lib/firebase.ts) to enable notifications.",
+          variant: "destructive",
+        });
+        return null; // Do not proceed to getFCMToken if VAPID key is the placeholder
       }
-
+      
+      console.log("[NExVERSE FCM] Attempting to get FCM token with VAPID key set.");
       const currentToken = await getFCMToken(messaging, { vapidKey: VAPID_KEY });
       if (currentToken) {
-        console.log('FCM Token:', currentToken);
+        console.log('[NExVERSE FCM] FCM Token retrieved successfully:', currentToken);
         showToast({ title: "Notifications Active", description: "You can now receive push notifications on this device." });
         
-        // Store token in Firestore for the current user
+        console.log(`[NExVERSE FCM] User ${auth.currentUser?.uid} is logged in. Attempting to save FCM token to Firestore.`);
         if (auth.currentUser) {
           const userDocRef = doc(db, 'users', auth.currentUser.uid);
           try {
-            await updateDoc(userDocRef, { 
-              fcmTokens: arrayUnion(currentToken),
-              lastFcmTokenUpdate: serverTimestamp()
-            });
-            console.log("FCM token saved to user's document.");
-          } catch (firestoreError) {
-            console.error("Error saving FCM token to Firestore:", firestoreError);
-             // If user doc doesn't exist, create it with the token
-            if ((firestoreError as any).code === 'not-found') {
-                try {
-                    await setDoc(userDocRef, {
-                        fcmTokens: [currentToken],
-                        createdAt: serverTimestamp(), // Assuming this is a new user doc
-                        // Add other essential user fields if creating for the first time
-                        uid: auth.currentUser.uid,
-                        email: auth.currentUser.email,
-                        displayName: auth.currentUser.displayName,
-                        role: 'user' // Default role
-                    }, { merge: true });
-                    console.log("User document created with FCM token.");
-                } catch (setDocError) {
-                    console.error("Error creating user document with FCM token:", setDocError);
-                }
+             // Check if user document exists before attempting to update
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+                console.log(`[NExVERSE FCM] User document for UID ${auth.currentUser.uid} found. Updating with FCM token.`);
+                await updateDoc(userDocRef, { 
+                    fcmTokens: arrayUnion(currentToken),
+                    lastFcmTokenUpdate: serverTimestamp()
+                });
+                console.log(`[NExVERSE FCM] Successfully updated user document with FCM token for UID: ${auth.currentUser.uid}`);
+            } else {
+                console.log(`[NExVERSE FCM] User document for UID ${auth.currentUser.uid} not found. Creating document with FCM token.`);
+                await setDoc(userDocRef, {
+                    uid: auth.currentUser.uid,
+                    email: auth.currentUser.email,
+                    displayName: auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || "Anonymous User",
+                    photoURL: auth.currentUser.photoURL || null,
+                    role: 'user', // Default role
+                    fcmTokens: [currentToken],
+                    createdAt: serverTimestamp(),
+                    lastFcmTokenUpdate: serverTimestamp()
+                }, { merge: true });
+                console.log(`[NExVERSE FCM] Successfully created user document with FCM token for UID: ${auth.currentUser.uid}`);
             }
+          } catch (firestoreError: any) {
+            console.error("[NExVERSE FCM] Error saving/updating FCM token to Firestore:", firestoreError.message, firestoreError.code, firestoreError.stack);
+            showToast({ title: "FCM Sync Error", description: `Could not save notification token: ${firestoreError.message}`, variant: "destructive"});
           }
         }
         return currentToken;
       } else {
-        console.log('No registration token available. Request permission to generate one.');
-        showToast({ title: "FCM Token Error", description: "Could not retrieve FCM token. Ensure push notifications are allowed for this site.", variant: "destructive" });
+        console.warn('[NExVERSE FCM] No registration token available. Request permission to generate one, or check VAPID key & service worker.');
+        showToast({ title: "FCM Token Error", description: "Could not retrieve FCM token. Ensure push notifications are allowed and service worker is registered correctly. Check VAPID key.", variant: "destructive" });
         return null;
       }
     } else {
-      console.log('Unable to get permission to notify.');
+      console.log('[NExVERSE FCM] Unable to get permission to notify.');
       showToast({ title: "Notifications Disabled", description: "Push notification permission not granted by user."});
       return null;
     }
-  } catch (err) {
-    console.error('An error occurred while initializing Firebase Messaging or retrieving token: ', err);
+  } catch (err: any) {
+    console.error('[NExVERSE FCM] An error occurred while initializing Firebase Messaging or retrieving token: ', err.message, err.code, err.stack);
     let errorDesc = "Could not set up push notifications.";
-    if (err instanceof Error && err.message.includes("permission")) {
+    if (err.name === 'FirebaseError') {
+        if (err.code === 'messaging/failed-serviceworker-registration') {
+            errorDesc = "Push notification service worker registration failed. Ensure 'firebase-messaging-sw.js' is in your public directory and correctly configured.";
+        } else if (err.code === 'messaging/invalid-vapid-key' || err.code === 'messaging/invalid-app-server-key' || (err.message && err.message.toLowerCase().includes("applicationServerKey")) ) {
+            errorDesc = "The VAPID key for push notifications is invalid or missing. Please check it in src/lib/firebase.ts.";
+        } else if (err.message && err.message.toLowerCase().includes("permission")) {
+            errorDesc = "Permission denied for notifications or an issue with service worker registration. Check browser console."
+        }
+    } else if (err instanceof Error && err.message.toLowerCase().includes("permission")) {
         errorDesc = "Permission denied for notifications or an issue with service worker registration. Check browser console."
-    } else if (err instanceof Error && err.message.includes("VAPID")) {
-        errorDesc = "VAPID key is invalid or missing. Notifications will not work."
     }
-    showToast({ title: "Messaging Error", description: errorDesc, variant: "destructive" });
+    showToast({ title: "Messaging Setup Error", description: errorDesc, variant: "destructive" });
     return null;
   }
 };
@@ -188,17 +206,13 @@ export const setupForegroundMessageHandler = (showToast: (options: { title: stri
   isFcmSupported().then(supported => {
     if (supported && messaging) { // Ensure messaging is initialized
       onMessage(messaging, (payload) => {
-        console.log('Message received in foreground: ', payload);
+        console.log('[NExVERSE FCM] Message received in foreground: ', payload);
         showToast({
-          title: payload.notification?.title || "NExVERSE",
+          title: payload.notification?.title || "NExVERSE Notification",
           description: payload.notification?.body || "You have a new message.",
         });
-        // Optionally, you can also display a browser notification if desired,
-        // but typically for foreground, a toast or in-app UI update is preferred.
-        // if (payload.notification) {
-        //   new Notification(payload.notification.title, { body: payload.notification.body, icon: payload.notification.icon });
-        // }
       });
+      console.log("[NExVERSE FCM] Foreground message handler set up.");
     }
   });
 };
