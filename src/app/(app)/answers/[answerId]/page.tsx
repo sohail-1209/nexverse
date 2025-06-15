@@ -1,14 +1,14 @@
 
 'use client';
 
-import { useParams, useSearchParams, useRouter } from 'next/navigation'; // Added useRouter
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowLeft, Bookmark, Edit, Trash2, UserCircle, CalendarDays, CheckCircle, Brain, MessageSquare, ThumbsUp, ThumbsDown, Share2, FileText, Download } from 'lucide-react'; // Added FileText, Download
+import { ArrowLeft, Bookmark, Edit, Trash2, UserCircle, CalendarDays, CheckCircle, Brain, MessageSquare, ThumbsUp, ThumbsDown, Share2, FileText, Download, Send } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,7 +17,7 @@ import { summarizeAnswer, SummarizeAnswerInput, SummarizeAnswerOutput } from '@/
 import { Loader2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
-import { db, doc, getDoc, deleteDoc, updateDoc, setDoc, serverTimestamp, storage, ref, deleteObject } from '@/lib/firebase'; // Added Firestore and Storage functions
+import { db, doc, getDoc, deleteDoc, updateDoc, setDoc, serverTimestamp, storage, ref, deleteObject, collection, addDoc, query, orderBy, onSnapshot, Timestamp, arrayUnion, arrayRemove, increment, writeBatch } from '@/lib/firebase';
 
 interface Answer {
   id: string;
@@ -34,9 +34,21 @@ interface Answer {
   createdAt: any; // Firestore Timestamp
   isVerified: boolean;
   views?: number;
-  likes?: number;
+  likeCount?: number;
+  dislikeCount?: number;
+  likedBy?: string[];
+  dislikedBy?: string[];
   fileURL?: string;
-  fileName?: string; // For deleting from storage
+  fileName?: string;
+}
+
+interface Comment {
+  id: string;
+  userId: string;
+  authorName: string;
+  authorAvatar?: string;
+  text: string;
+  createdAt: Timestamp; // Firestore Timestamp for comments
 }
 
 export default function AnswerDetailPage() {
@@ -45,11 +57,25 @@ export default function AnswerDetailPage() {
   const router = useRouter();
   const answerId = params.answerId as string;
   const { user, isAdmin } = useAuth();
+
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [isCommentsLoading, setIsCommentsLoading] = useState(true);
+  const [isPostingComment, setIsPostingComment] = useState(false);
+
+  const [userLikeStatus, setUserLikeStatus] = useState<'liked' | 'disliked' | null>(null);
+  const [isLikingDisliking, setIsLikingDisliking] = useState(false);
+  
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
+  };
 
   useEffect(() => {
     const fetchAnswer = async () => {
@@ -60,19 +86,26 @@ export default function AnswerDetailPage() {
         const answerDocSnap = await getDoc(answerDocRef);
 
         if (answerDocSnap.exists()) {
-          const fetchedAnswer = { id: answerDocSnap.id, ...answerDocSnap.data() } as Answer;
-          // Increment views (basic implementation, consider debouncing or server-side increment for production)
-          if(user && fetchedAnswer.userId !== user.uid) { // Don't count owner's views this simply
-             await updateDoc(answerDocRef, { views: (fetchedAnswer.views || 0) + 1 });
+          const fetchedAnswer = { 
+            id: answerDocSnap.id, 
+            ...answerDocSnap.data(),
+            likeCount: answerDocSnap.data().likeCount || 0,
+            dislikeCount: answerDocSnap.data().dislikeCount || 0,
+            likedBy: answerDocSnap.data().likedBy || [],
+            dislikedBy: answerDocSnap.data().dislikedBy || [],
+          } as Answer;
+          
+          if(user && fetchedAnswer.userId !== user.uid) {
+             await updateDoc(answerDocRef, { views: increment(1) });
              fetchedAnswer.views = (fetchedAnswer.views || 0) + 1;
           }
           setAnswer(fetchedAnswer);
 
-          // Fetch bookmark status if user is logged in
           if (user) {
             const bookmarkDocRef = doc(db, `users/${user.uid}/bookmarks`, answerId);
             const bookmarkDocSnap = await getDoc(bookmarkDocRef);
             setIsBookmarked(bookmarkDocSnap.exists());
+            setUserLikeStatus(fetchedAnswer.likedBy?.includes(user.uid) ? 'liked' : fetchedAnswer.dislikedBy?.includes(user.uid) ? 'disliked' : null);
           }
         } else {
           setAnswer(null);
@@ -89,6 +122,27 @@ export default function AnswerDetailPage() {
     fetchAnswer();
   }, [answerId, user]);
 
+  useEffect(() => {
+    if (!answerId) return;
+    setIsCommentsLoading(true);
+    const commentsQuery = query(collection(db, `answers/${answerId}/comments`), orderBy('createdAt', 'asc'));
+    const unsubscribe = onSnapshot(commentsQuery, (snapshot) => {
+      const fetchedComments: Comment[] = [];
+      snapshot.forEach((doc) => {
+        fetchedComments.push({ id: doc.id, ...doc.data() } as Comment);
+      });
+      setComments(fetchedComments);
+      setIsCommentsLoading(false);
+    }, (error) => {
+      console.error("Error fetching comments:", error);
+      toast({ title: "Error", description: "Could not load comments.", variant: "destructive"});
+      setIsCommentsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [answerId]);
+
+
   const handleBookmark = async () => {
     if (!user || !answer) {
       toast({ title: "Login Required", description: "Please log in to bookmark answers.", variant: "destructive" });
@@ -102,7 +156,7 @@ export default function AnswerDetailPage() {
       } else {
         await setDoc(bookmarkDocRef, { 
           answerId: answer.id,
-          title: answer.title, // Denormalize for easier listing
+          title: answer.title,
           subjectId: answer.subjectId,
           subjectName: answer.subjectName,
           category: answer.category,
@@ -127,17 +181,11 @@ export default function AnswerDetailPage() {
     }
 
     try {
-      // Delete from Firestore
       await deleteDoc(doc(db, 'answers', answer.id));
-
-      // Delete file from Storage if it exists
       if (answer.fileURL && answer.fileName) {
         const fileRef = ref(storage, `answers/${answer.userId}/${answer.fileName}`);
         await deleteObject(fileRef);
       }
-      
-      // TODO: Optionally, remove this answer from all users' bookmarks (more complex, consider a Cloud Function)
-
       toast({ title: "Answer Deleted", description: "The answer has been successfully deleted." });
       router.push(answer.subjectId ? `/subjects/${answer.subjectId}` : '/subjects');
     } catch (error) {
@@ -178,6 +226,173 @@ export default function AnswerDetailPage() {
     }
   };
 
+   const handleShare = async () => {
+    if (!answer) return;
+    const shareData = {
+      title: answer.title,
+      text: `Check out this answer on NExVERSE: ${answer.title}`,
+      url: window.location.href,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast({ title: 'Shared!', description: 'Answer link shared successfully.' });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast({ title: 'Link Copied!', description: 'Answer link copied to clipboard as Web Share is not available.' });
+      }
+    } catch (err: any) {
+      console.warn("Share failed:", err.name, err.message);
+      if (err.name === 'NotAllowedError' || err.message.toLowerCase().includes('permission denied')) {
+        toast({
+          title: 'Sharing Canceled or Denied',
+          description: 'It seems sharing was canceled or permission was denied by the browser. Link copied to clipboard instead!',
+          variant: 'default', // Changed from destructive for permission denied as it's a common user action
+        });
+      } else {
+        toast({
+          title: 'Sharing Failed',
+          description: 'Could not share. Link copied to clipboard instead.',
+          variant: 'destructive',
+        });
+      }
+      // Fallback to clipboard copy
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+      } catch (copyErr) {
+        console.error('Fallback clipboard copy failed:', copyErr);
+        toast({ title: 'Error', description: 'Could not copy link to clipboard.', variant: 'destructive'});
+      }
+    }
+  };
+
+  const handleLikeDislike = async (action: 'like' | 'dislike') => {
+    if (!user || !answer || isLikingDisliking) return;
+    setIsLikingDisliking(true);
+
+    const answerDocRef = doc(db, 'answers', answer.id);
+    const batch = writeBatch(db);
+    let newLikeStatus: 'liked' | 'disliked' | null = userLikeStatus;
+    let newLikeCount = answer.likeCount || 0;
+    let newDislikeCount = answer.dislikeCount || 0;
+
+    if (action === 'like') {
+      if (userLikeStatus === 'liked') { // Unlike
+        batch.update(answerDocRef, {
+          likeCount: increment(-1),
+          likedBy: arrayRemove(user.uid)
+        });
+        newLikeCount--;
+        newLikeStatus = null;
+      } else { // Like
+        batch.update(answerDocRef, {
+          likeCount: increment(1),
+          likedBy: arrayUnion(user.uid)
+        });
+        newLikeCount++;
+        newLikeStatus = 'liked';
+        if (userLikeStatus === 'disliked') { // Was disliked, remove dislike
+          batch.update(answerDocRef, {
+            dislikeCount: increment(-1),
+            dislikedBy: arrayRemove(user.uid)
+          });
+          newDislikeCount--;
+        }
+      }
+    } else if (action === 'dislike') {
+      if (userLikeStatus === 'disliked') { // Undislike
+        batch.update(answerDocRef, {
+          dislikeCount: increment(-1),
+          dislikedBy: arrayRemove(user.uid)
+        });
+        newDislikeCount--;
+        newLikeStatus = null;
+      } else { // Dislike
+        batch.update(answerDocRef, {
+          dislikeCount: increment(1),
+          dislikedBy: arrayUnion(user.uid)
+        });
+        newDislikeCount++;
+        newLikeStatus = 'disliked';
+        if (userLikeStatus === 'liked') { // Was liked, remove like
+          batch.update(answerDocRef, {
+            likeCount: increment(-1),
+            likedBy: arrayRemove(user.uid)
+          });
+          newLikeCount--;
+        }
+      }
+    }
+
+    try {
+      await batch.commit();
+      setUserLikeStatus(newLikeStatus);
+      // Update local answer state for immediate UI feedback
+      setAnswer(prev => prev ? {
+        ...prev,
+        likeCount: newLikeCount,
+        dislikeCount: newDislikeCount,
+        likedBy: newLikeStatus === 'liked' ? [...(prev.likedBy || []), user.uid].filter((v,i,a)=>a.indexOf(v)===i) : (prev.likedBy || []).filter(uid => uid !== user.uid),
+        dislikedBy: newLikeStatus === 'disliked' ? [...(prev.dislikedBy || []), user.uid].filter((v,i,a)=>a.indexOf(v)===i) : (prev.dislikedBy || []).filter(uid => uid !== user.uid),
+      } : null);
+      toast({ title: 'Vote Recorded', description: `You ${action}d this answer.` });
+    } catch (error) {
+      console.error("Error liking/disliking answer:", error);
+      toast({ title: "Error", description: "Could not record your vote.", variant: "destructive"});
+    } finally {
+      setIsLikingDisliking(false);
+    }
+  };
+
+  const handlePostComment = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !answer || !newCommentText.trim()) {
+      if (!newCommentText.trim()) toast({ title: "Empty Comment", description: "Cannot post an empty comment.", variant: "destructive" });
+      else toast({ title: "Login Required", description: "Please log in to comment.", variant: "destructive" });
+      return;
+    }
+     setIsPostingComment(true);
+
+    // Fetch user profile to ensure displayName is current and exists, as per rules
+    const userDocRef = doc(db, 'users', user.uid);
+    try {
+        const userDocSnap = await getDoc(userDocRef);
+        if (!userDocSnap.exists() || !userDocSnap.data()?.displayName || userDocSnap.data()?.displayName.trim() === "") {
+            toast({
+                title: 'Profile Incomplete',
+                description: 'Please set your Display Name in your profile before posting comments.',
+                variant: 'destructive',
+                action: <Button onClick={() => router.push('/profile')} variant="outline">Go to Profile</Button>
+            });
+            setIsPostingComment(false);
+            return;
+        }
+        const authorDisplayName = userDocSnap.data()?.displayName;
+
+
+      const commentsCollectionRef = collection(db, `answers/${answer.id}/comments`);
+      await addDoc(commentsCollectionRef, {
+        userId: user.uid,
+        authorName: authorDisplayName, // Use displayName from fetched user doc
+        authorAvatar: user.photoURL || null,
+        text: newCommentText.trim(),
+        createdAt: serverTimestamp(),
+      });
+      setNewCommentText('');
+      toast({ title: 'Comment Posted!' });
+    } catch (error: any) {
+      console.error("Error posting comment:", error);
+      if (error.message?.includes("Missing or insufficient permissions")) {
+         toast({ title: "Comment Error", description: "Could not post comment. Please ensure your profile has a Display Name.", variant: "destructive"});
+      } else {
+         toast({ title: "Comment Error", description: "Could not post your comment. Please try again.", variant: "destructive"});
+      }
+    } finally {
+      setIsPostingComment(false);
+    }
+  };
+
+
   if (isLoading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
   }
@@ -215,7 +430,7 @@ export default function AnswerDetailPage() {
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={answer.authorAvatar} alt={answer.authorName} />
-                <AvatarFallback>{answer.authorName?.substring(0, 2).toUpperCase() || 'U'}</AvatarFallback>
+                <AvatarFallback>{getInitials(answer.authorName)}</AvatarFallback>
               </Avatar>
               <div>
                 <p className="font-semibold">{answer.authorName}</p>
@@ -272,11 +487,26 @@ export default function AnswerDetailPage() {
           <Separator className="my-6" />
 
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="flex gap-4 text-muted-foreground">
-              {/* TODO: Implement like/dislike functionality */}
-              <Button variant="ghost" size="sm" disabled><ThumbsUp className="mr-2 h-4 w-4" /> ({answer.likes || 0})</Button>
-              <Button variant="ghost" size="sm" disabled><ThumbsDown className="mr-2 h-4 w-4" /> (0)</Button>
-              <Button variant="ghost" size="sm" disabled><Share2 className="mr-2 h-4 w-4" /> Share</Button>
+            <div className="flex gap-1 sm:gap-2 text-muted-foreground">
+              <Button 
+                variant={userLikeStatus === 'liked' ? 'default' : 'ghost'} 
+                size="sm" 
+                onClick={() => handleLikeDislike('like')}
+                disabled={!user || isLikingDisliking}
+              >
+                <ThumbsUp className="mr-2 h-4 w-4" /> ({answer.likeCount || 0})
+              </Button>
+              <Button 
+                variant={userLikeStatus === 'disliked' ? 'destructive' : 'ghost'} 
+                size="sm" 
+                onClick={() => handleLikeDislike('dislike')}
+                disabled={!user || isLikingDisliking}
+              >
+                <ThumbsDown className="mr-2 h-4 w-4" /> ({answer.dislikeCount || 0})
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleShare}>
+                <Share2 className="mr-2 h-4 w-4" /> Share
+              </Button>
             </div>
             <div className="flex gap-2">
               {user && (
@@ -286,7 +516,7 @@ export default function AnswerDetailPage() {
               )}
               {(isOwner || isAdmin) && (
                 <>
-                  <Button variant="outline" size="icon" disabled title="Edit feature coming soon"> {/* No asChild, no Link */}
+                  <Button variant="outline" size="icon" disabled title="Edit feature coming soon">
                     <Edit className="h-4 w-4" />
                     <span className="sr-only">Edit</span>
                   </Button>
@@ -343,15 +573,62 @@ export default function AnswerDetailPage() {
         </CardContent>
       </Card>
 
-      {/* TODO: Implement Comments Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-headline text-xl flex items-center gap-2"><MessageSquare className="h-6 w-6 text-primary" /> Discussion</CardTitle>
+          <CardTitle className="font-headline text-xl flex items-center gap-2"><MessageSquare className="h-6 w-6 text-primary" /> Discussion ({comments.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Textarea placeholder="Add a comment... (Feature coming soon)" disabled />
-          <Button className="mt-2" disabled>Post Comment</Button>
-          <p className="text-sm text-muted-foreground mt-4">Comments section is under construction.</p>
+          {user ? (
+            <form onSubmit={handlePostComment} className="flex gap-2 mb-6">
+              <Avatar className="h-10 w-10 mt-1">
+                <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+                <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
+              </Avatar>
+              <Textarea 
+                placeholder="Add your comment..." 
+                value={newCommentText}
+                onChange={(e) => setNewCommentText(e.target.value)}
+                rows={2}
+                className="flex-grow"
+                disabled={isPostingComment}
+              />
+              <Button type="submit" disabled={isPostingComment || !newCommentText.trim()}>
+                {isPostingComment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                <span className="ml-2 hidden sm:inline">Post</span>
+              </Button>
+            </form>
+          ) : (
+            <p className="text-sm text-muted-foreground mb-6">
+              <Button variant="link" asChild className="p-0 h-auto"><Link href="/auth/login">Log in</Link></Button> to post a comment.
+            </p>
+          )}
+
+          {isCommentsLoading ? (
+             <div className="flex justify-center items-center py-4"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+          ) : comments.length > 0 ? (
+            <div className="space-y-4">
+              {comments.map(comment => (
+                <div key={comment.id} className="flex gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={comment.authorAvatar} alt={comment.authorName} />
+                    <AvatarFallback>{getInitials(comment.authorName)}</AvatarFallback>
+                  </Avatar>
+                  <div className="bg-muted p-3 rounded-lg flex-grow">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-sm">{comment.authorName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {comment.createdAt?.toDate ? new Date(comment.createdAt.toDate()).toLocaleString() : 'Just now'}
+                      </p>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap">{comment.text}</p>
+                     {/* TODO: Add edit/delete for comment owner or admin */}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">Be the first to comment on this answer!</p>
+          )}
         </CardContent>
       </Card>
     </div>
