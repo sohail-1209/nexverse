@@ -57,7 +57,7 @@ interface SelectedImage {
 const LOCAL_STORAGE_CHAT_KEY = 'nexverseChatMessages';
 const initialGreetingMessage: Message = { 
   id: 'ai-greeting', 
-  text: "Hello! I'm NEXI ✨, your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, upload an image from your device, capture an image with your camera, or use voice input. I can also research online for you! To generate an image, type `/imagine <your prompt>`.", 
+  text: "Hello! I'm NEXI ✨, your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, upload an image from your device, capture an image with your camera, or use voice input. I can also research online for you! To generate an image, type `/imagine <your prompt>`. For specific artistic styles (e.g., 'Studio Ghibli art', 'impressionist painting'), try to be very descriptive about the subject, mood, colors, and key elements of that style.", 
   sender: 'ai', 
   timestamp: new Date() 
 };
@@ -907,4 +907,3 @@ export default function ChatPage() {
     </div>
   );
 }
-

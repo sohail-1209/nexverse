@@ -18,7 +18,7 @@ export type GenerateImageInput = z.infer<typeof GenerateImageInputSchema>;
 
 const GenerateImageOutputSchema = z.object({
   imageDataUri: z.string().optional().describe('The data URI of the generated image (e.g., data:image/png;base64,...).'),
-  accompanyingText: z.string().optional().describe('Any accompanying text returned by the model, or an error message.'),
+  accompanyingText: z.string().optional().describe('Any accompanying text returned by the model, or an error message, potentially with tips for improvement.'),
 });
 export type GenerateImageOutput = z.infer<typeof GenerateImageOutputSchema>;
 
@@ -51,9 +51,15 @@ const generateImageGenkitFlow = ai.defineFlow(
       });
 
       if (media?.url) {
+        let finalAccompanyingText = text || `Successfully generated image for: "${input.prompt}"`;
+        // If the model's text is short or just a confirmation, add a tip for refinement.
+        // This helps guide users even on successful generations if the output isn't perfect.
+        if (!text || text.length < 70 || text.toLowerCase().startsWith("successfully generated") || text.toLowerCase().startsWith("here is the image") || text.toLowerCase().startsWith("here's an image")) {
+          finalAccompanyingText += `\n\n💡 Tip: If this isn't quite what you wanted (e.g., for styles like 'Ghibli art'), try refining your prompt. Be more descriptive about specific visual elements, characters, mood, color palettes, or even mention key artists or works that inspire the style.`;
+        }
         return { 
           imageDataUri: media.url, 
-          accompanyingText: text || `Successfully generated image for: "${input.prompt}"` 
+          accompanyingText: finalAccompanyingText
         };
       } else {
         // Image was not generated, media.url is null.
@@ -63,7 +69,7 @@ const generateImageGenkitFlow = ai.defineFlow(
         if (text && (text.toLowerCase().includes("safety") || text.toLowerCase().includes("policy") || text.toLowerCase().includes("unable to create") || text.toLowerCase().includes("cannot generate"))) {
             userFacingMessage += " This may be due to content policies or safety filters. Please try a different prompt.";
         } else {
-            userFacingMessage += " To improve results, try being more descriptive. For example, include details about the subject, style (e.g., 'photorealistic', 'cartoon'), colors, lighting, or composition.";
+            userFacingMessage += " To improve results, try being more descriptive. For example, include details about the subject, style (e.g., 'photorealistic', 'Studio Ghibli art', 'watercolor'), colors, lighting, composition, and specific artists or inspirations if relevant.";
         }
         return { accompanyingText: userFacingMessage };
       }
@@ -75,9 +81,9 @@ const generateImageGenkitFlow = ai.defineFlow(
       if (errStr.includes('safety') || errStr.includes('policy')) {
         errorMessage = `The image for "${input.prompt}" could not be generated due to content policies or safety filters. Please try a different prompt.`;
       } else if (errStr.includes('model') || errStr.includes('resource exhausted') || errStr.includes('failed to generate')) {
-        errorMessage = `There was an issue with the image generation model or resources for prompt "${input.prompt}". Please try again later or with a different, more specific prompt.`;
+        errorMessage = `There was an issue with the image generation model or resources for prompt "${input.prompt}". Please try again later or with a different, more specific prompt. Adding more detail about subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, and composition can sometimes help.`;
       } else if (error.message) {
-        errorMessage = `Error generating image for "${input.prompt}": ${error.message}. If the issue persists, try making your prompt more specific or rephrasing it.`;
+        errorMessage = `Error generating image for "${input.prompt}": ${error.message}. If the issue persists, try making your prompt more specific (e.g., detail the style, subject, colors, mood) or rephrasing it.`;
       }
       return { accompanyingText: errorMessage };
     }
@@ -87,4 +93,3 @@ const generateImageGenkitFlow = ai.defineFlow(
 async function generateImageFlow(input: GenerateImageInput): Promise<GenerateImageOutput> {
     return generateImageGenkitFlow(input);
 }
-
