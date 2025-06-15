@@ -24,14 +24,14 @@ import {
   increment, 
   writeBatch,
   Timestamp,
-  onSnapshot // Added onSnapshot import
+  onSnapshot
 } from 'firebase/firestore';
 import { getAnalytics, Analytics } from 'firebase/analytics';
 import { getStorage, FirebaseStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import {
   getMessaging,
   getToken as getFCMToken,
-  onMessage as onFCMMessage, // Renamed to avoid conflict if 'onMessage' is used locally
+  onMessage as onFCMMessage,
   isSupported as isFcmSupported
 } from 'firebase/messaging';
 
@@ -75,18 +75,16 @@ if (typeof window === 'undefined') {
 let app: FirebaseApp;
 let analytics: Analytics | undefined;
 let storageInstance: FirebaseStorage;
-let messaging: any = null; // Can be Firebase Messaging or null if not supported/initialized
+let messaging: any = null;
 
 if (!getApps().length) {
   try {
     if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.messagingSenderId || !firebaseConfig.storageBucket) {
       const errorMsg = '[Firebase Init Error] Firebase API Key, Project ID, Storage Bucket, or Messaging Sender ID is missing from environment variables. Cannot initialize Firebase fully. This usually means the corresponding secrets were not found or accessible by App Hosting. Please check Google Secret Manager for your project and ensure the secrets exist, have values, and that the App Hosting service account has "Secret Manager Secret Accessor" permissions.';
       console.error(errorMsg);
-      // Depending on severity, you might throw or handle gracefully
-      // For now, it will try to initialize anyway, and specific services might fail later.
     }
     app = initializeApp(firebaseConfig);
-    storageInstance = getStorage(app); // Initialize storage here
+    storageInstance = getStorage(app);
     if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
       try {
         analytics = getAnalytics(app);
@@ -99,12 +97,10 @@ if (!getApps().length) {
     if (typeof window === 'undefined') {
         throw new Error(`Server-side Firebase initialization failed: ${error}. Check Secret Manager configuration and IAM permissions for App Hosting service account.`);
     }
-    // Handle the error appropriately, e.g., by setting app to a state that indicates failure
-    // For now, code below might fail if 'app' is not initialized.
   }
 } else {
   app = getApps()[0];
-  storageInstance = getStorage(app); // Ensure storage is initialized if app already exists
+  storageInstance = getStorage(app); 
   if (typeof window !== 'undefined' && firebaseConfig.measurementId) {
     try {
       analytics = getAnalytics(app);
@@ -114,14 +110,13 @@ if (!getApps().length) {
   }
 }
 
-// @ts-ignore - app might not be initialized if config is missing above
+// @ts-ignore 
 const auth: Auth = getAuth(app);
-// @ts-ignore - app might not be initialized
+// @ts-ignore 
 const db: Firestore = getFirestore(app);
 
-// Actual VAPID key
 const VAPID_KEY = "BB99WyUz39vmARSo961L5lkLJY9mCGakOBb8YdRQrinuSj65XBffX_rByPZyJltNBIZnHA1qJFY1CtJcwk7vKEw";
-const VAPID_KEY_PLACEHOLDER_TEXT = "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE"; // For check
+const VAPID_KEY_PLACEHOLDER_TEXT = "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE_PLEASE_REPLACE_THIS_LINE";
 
 export const initializeFirebaseMessaging = async (showToast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void) => {
   console.log("[NExVERSE FCM] Attempting to initialize Firebase Messaging...");
@@ -132,17 +127,16 @@ export const initializeFirebaseMessaging = async (showToast: (options: { title: 
   }
 
   if (!messaging) {
-     // @ts-ignore
+    // @ts-ignore
     messaging = getMessaging(app);
-     console.log("[NExVERSE FCM] Messaging service initialized.");
+    console.log("[NExVERSE FCM] Messaging service initialized.");
   }
 
   try {
-    if (VAPID_KEY === VAPID_KEY_PLACEHOLDER_TEXT || !VAPID_KEY || VAPID_KEY.length < 50) { // Added length check
+    if (VAPID_KEY === VAPID_KEY_PLACEHOLDER_TEXT || !VAPID_KEY || VAPID_KEY.length < 50) {
         const warningMessage = "[NExVERSE FCM] CRITICAL: VAPID Key for FCM is not set or seems invalid in src/lib/firebase.ts. Push notifications WILL NOT WORK. Please generate/find your VAPID key in Firebase Console (Project Settings > Cloud Messaging > Web Push certificates) and set it correctly in the code. Current key: " + VAPID_KEY;
         console.warn(warningMessage);
         
-        // Only show toast to admin users to avoid bothering regular users
         if (auth.currentUser) {
             const userDocRef = doc(db, 'users', auth.currentUser.uid);
             const userDocSnap = await getDoc(userDocRef);
@@ -154,7 +148,7 @@ export const initializeFirebaseMessaging = async (showToast: (options: { title: 
                 });
             }
         }
-        return null; // Stop here if VAPID key is bad
+        return null;
     }
 
     console.log("[NExVERSE FCM] Requesting notification permission...");
@@ -234,7 +228,7 @@ export const initializeFirebaseMessaging = async (showToast: (options: { title: 
 export const setupForegroundMessageHandler = (showToast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void) => {
   isFcmSupported().then(supported => {
     if (supported && messaging) {
-      onFCMMessage(messaging, (payload) => { // Use renamed onFCMMessage
+      onFCMMessage(messaging, (payload) => {
         console.log('[NExVERSE FCM] Message received in foreground: ', payload);
         showToast({
           title: payload.notification?.title || "NExVERSE Notification",
@@ -251,8 +245,8 @@ export {
   auth, 
   db, 
   analytics, 
-  storageInstance as storage, // Export storageInstance as storage
-  messaging, // Export messaging
+  storageInstance as storage,
+  messaging,
   // Firestore functions
   collection, 
   addDoc, 
@@ -263,7 +257,7 @@ export {
   getDocs, 
   query, 
   where, 
-  deleteDoc, 
+  deleteDoc, // Firestore deleteDoc
   updateDoc, 
   orderBy, 
   limit, 
@@ -274,10 +268,10 @@ export {
   increment, 
   writeBatch,
   Timestamp,
-  onSnapshot // Ensure onSnapshot is exported
+  onSnapshot,
+  // Storage functions
+  ref, // Storage ref
+  uploadBytes,
+  getDownloadURL,
+  deleteObject // Storage deleteObject
 };
-    
-
-    
-
-    
