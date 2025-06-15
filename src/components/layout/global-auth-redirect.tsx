@@ -11,9 +11,11 @@ export function GlobalAuthRedirect({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const alwaysPublicPaths = ['/auth/login', '/auth/signup', '/about', '/contact', '/privacy', '/terms'];
+  const alwaysPublicPaths = ['/', '/auth/login', '/auth/signup', '/about', '/contact', '/privacy', '/terms'];
   const isAuthPage = pathname === '/auth/login' || pathname === '/auth/signup';
-  const isAlwaysPublicPage = alwaysPublicPaths.includes(pathname);
+  // Check if the current path is one of the always public paths OR if it's the root path itself.
+  const isPubliclyAccessiblePage = alwaysPublicPaths.includes(pathname);
+
 
   useEffect(() => {
     if (loading) {
@@ -26,25 +28,23 @@ export function GlobalAuthRedirect({ children }: { children: ReactNode }) {
       if (isAuthPage) {
         // If logged-in user is on a login/signup page, redirect to dashboard
         router.replace('/dashboard');
-      } else if (pathname === '/') {
-        // If logged-in user is on the public root, redirect to dashboard
-        router.replace('/dashboard');
       }
-      // For other pages, allow access (AuthGuard in (app)/layout will handle its specific routes if needed)
+      // No longer redirecting from '/' if logged in.
+      // For other pages, AuthGuard in (app)/layout will handle its specific routes if needed.
     } else {
       // User is not logged in
-      if (!isAlwaysPublicPage) {
+      if (!isPubliclyAccessiblePage) {
         // If on a protected page (not in alwaysPublicPaths), redirect to login
         router.replace('/auth/login');
       }
-      // If on an always public page, allow access
+      // If on an always public page (including '/'), allow access
     }
-  }, [user, loading, router, pathname, isAuthPage, isAlwaysPublicPage]);
+  }, [user, loading, router, pathname, isAuthPage, isPubliclyAccessiblePage]);
 
-  // Show loader while auth state is loading AND the page isn't an auth page or an always public one
+  // Show loader while auth state is loading AND the page isn't one that's always public
   // (to prevent content flashing on protected routes before redirect)
-  // OR if a redirect is likely happening for a logged-in user away from an auth page or public root.
-  if (loading && !isAlwaysPublicPage) {
+  // OR if a redirect is likely happening for a logged-in user away from an auth page.
+  if (loading && !isPubliclyAccessiblePage) {
     return (
       <div className="flex min-h-[calc(100vh_-_theme(spacing.32)_-_theme(spacing.16))] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -52,9 +52,9 @@ export function GlobalAuthRedirect({ children }: { children: ReactNode }) {
     );
   }
 
-  // If after loading, user is not present and it's not an always public page,
+  // If after loading, user is not present and it's not a publicly accessible page,
   // a redirect to login should be in progress. Show loader.
-  if (!loading && !user && !isAlwaysPublicPage) {
+  if (!loading && !user && !isPubliclyAccessiblePage) {
     return (
       <div className="flex min-h-[calc(100vh_-_theme(spacing.32)_-_theme(spacing.16))] items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
@@ -62,9 +62,9 @@ export function GlobalAuthRedirect({ children }: { children: ReactNode }) {
     );
   }
   
-  // If after loading, user is present and they are on an auth page or the root,
+  // If after loading, user is present and they are on an auth page (login/signup),
   // a redirect to dashboard should be in progress. Show loader.
-   if (!loading && user && (isAuthPage || pathname === '/')) {
+   if (!loading && user && isAuthPage) {
      return (
        <div className="flex min-h-[calc(100vh_-_theme(spacing.32)_-_theme(spacing.16))] items-center justify-center">
          <Loader2 className="h-16 w-16 animate-spin text-primary" />
