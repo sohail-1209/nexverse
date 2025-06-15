@@ -247,7 +247,7 @@ export default function AnswerDetailPage() {
         toast({
           title: 'Sharing Canceled or Denied',
           description: 'It seems sharing was canceled or permission was denied by the browser. Link copied to clipboard instead!',
-          variant: 'default', // Changed from destructive for permission denied as it's a common user action
+          variant: 'default',
         });
       } else {
         toast({
@@ -256,7 +256,6 @@ export default function AnswerDetailPage() {
           variant: 'destructive',
         });
       }
-      // Fallback to clipboard copy
       try {
         await navigator.clipboard.writeText(window.location.href);
       } catch (copyErr) {
@@ -327,7 +326,6 @@ export default function AnswerDetailPage() {
     try {
       await batch.commit();
       setUserLikeStatus(newLikeStatus);
-      // Update local answer state for immediate UI feedback
       setAnswer(prev => prev ? {
         ...prev,
         likeCount: newLikeCount,
@@ -353,7 +351,6 @@ export default function AnswerDetailPage() {
     }
      setIsPostingComment(true);
 
-    // Fetch user profile to ensure displayName is current and exists, as per rules
     const userDocRef = doc(db, 'users', user.uid);
     try {
         const userDocSnap = await getDoc(userDocRef);
@@ -373,7 +370,7 @@ export default function AnswerDetailPage() {
       const commentsCollectionRef = collection(db, `answers/${answer.id}/comments`);
       await addDoc(commentsCollectionRef, {
         userId: user.uid,
-        authorName: authorDisplayName, // Use displayName from fetched user doc
+        authorName: authorDisplayName,
         authorAvatar: user.photoURL || null,
         text: newCommentText.trim(),
         createdAt: serverTimestamp(),
@@ -389,6 +386,20 @@ export default function AnswerDetailPage() {
       }
     } finally {
       setIsPostingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!user || !answer) return;
+    
+    try {
+      const commentDocRef = doc(db, `answers/${answer.id}/comments`, commentId);
+      await deleteDoc(commentDocRef);
+      toast({ title: 'Comment Deleted', description: 'The comment has been removed.' });
+      // UI will update automatically due to onSnapshot listener
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      toast({ title: "Deletion Failed", description: "Could not delete the comment.", variant: "destructive"});
     }
   };
 
@@ -608,12 +619,12 @@ export default function AnswerDetailPage() {
           ) : comments.length > 0 ? (
             <div className="space-y-4">
               {comments.map(comment => (
-                <div key={comment.id} className="flex gap-3">
+                <div key={comment.id} className="group flex gap-3">
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={comment.authorAvatar} alt={comment.authorName} />
                     <AvatarFallback>{getInitials(comment.authorName)}</AvatarFallback>
                   </Avatar>
-                  <div className="bg-muted p-3 rounded-lg flex-grow">
+                  <div className="bg-muted p-3 rounded-lg flex-grow relative">
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-semibold text-sm">{comment.authorName}</p>
                       <p className="text-xs text-muted-foreground">
@@ -621,7 +632,34 @@ export default function AnswerDetailPage() {
                       </p>
                     </div>
                     <p className="text-sm whitespace-pre-wrap">{comment.text}</p>
-                     {/* TODO: Add edit/delete for comment owner or admin */}
+                    {(user && (user.uid === comment.userId || isAdmin)) && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 h-6 w-6"
+                                title="Delete Comment"
+                            >
+                                <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Comment?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this comment? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteComment(comment.id)} className="bg-destructive hover:bg-destructive/90">
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                   </div>
                 </div>
               ))}
