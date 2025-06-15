@@ -1,5 +1,5 @@
 
-import { Home, BookOpenText, Bookmark, MessageSquare, PlusCircle, Users, Settings, User, LibrarySquare } from "lucide-react";
+import { Home, BookOpenText, Bookmark, MessageSquare, PlusCircle, Users, Settings, User, LibrarySquare, Bell } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type NavItem = {
@@ -55,6 +55,11 @@ export const siteConfig: SiteConfig = {
       title: "My Bookmarks",
       href: "/bookmarks",
       icon: Bookmark,
+    },
+    {
+      title: "Notifications",
+      href: "/notifications",
+      icon: Bell,
     },
     {
       title: "Chat AI",
