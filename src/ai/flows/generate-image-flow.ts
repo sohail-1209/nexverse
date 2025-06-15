@@ -26,10 +26,6 @@ export async function generateImage(input: GenerateImageInput): Promise<Generate
   return generateImageFlow(input);
 }
 
-// NOTE: Gemini 2.0 Flash for image generation is experimental.
-// It might have stricter safety filters or limitations.
-// Explicit safety settings can be added to `config` if needed,
-// similar to text generation flows.
 const generateImageGenkitFlow = ai.defineFlow(
   {
     name: 'generateImageFlow',
@@ -39,33 +35,48 @@ const generateImageGenkitFlow = ai.defineFlow(
   async (input) => {
     try {
       const {media, text} = await ai.generate({
-        model: 'googleai/gemini-2.0-flash-exp', // IMPORTANT: This model is for image generation
+        model: 'googleai/gemini-2.0-flash-exp', 
         prompt: input.prompt,
         config: {
-          responseModalities: ['TEXT', 'IMAGE'], // MUST provide both TEXT and IMAGE
+          responseModalities: ['TEXT', 'IMAGE'], 
         },
       });
 
       if (media?.url) {
-        return { imageDataUri: media.url, accompanyingText: text || 'Image generated.' };
+        return { 
+          imageDataUri: media.url, 
+          accompanyingText: text || `Successfully generated image for: "${input.prompt}"` 
+        };
       } else {
-        return { accompanyingText: text || 'Sorry, I could not generate an image for that prompt.' };
+        // Image was not generated, media.url is null.
+        console.warn(`[generateImageFlow] Image URL was null for prompt: "${input.prompt}". Model's raw text response (if any): "${text}"`);
+        let userFacingMessage = `Sorry, I couldn't generate an image for the prompt: "${input.prompt}".`;
+        
+        if (text && (text.toLowerCase().includes("safety") || text.toLowerCase().includes("policy") || text.toLowerCase().includes("unable to create"))) {
+            userFacingMessage += " This may be due to content policies or safety filters. Please try a different prompt.";
+        } else {
+            userFacingMessage += " Please try a different prompt or rephrase your request.";
+        }
+        return { accompanyingText: userFacingMessage };
       }
     } catch (error: any) {
-      console.error('Error in generateImageFlow:', error);
-      let errorMessage = 'An unexpected error occurred while generating the image.';
-      if (error.message) {
-        errorMessage = `Error: ${error.message}`;
-      }
-      if (error.cause?.message && error.cause.message.includes('SAFETY')) {
-        errorMessage = "The image could not be generated due to safety filters. Please try a different prompt.";
+      console.error(`[generateImageFlow] Error during image generation for prompt "${input.prompt}":`, error);
+      let errorMessage = `An unexpected error occurred while trying to generate an image for: "${input.prompt}".`;
+      
+      const errStr = String(error.message || error.toString()).toLowerCase();
+      if (errStr.includes('safety') || errStr.includes('policy')) {
+        errorMessage = `The image for "${input.prompt}" could not be generated due to content policies or safety filters. Please try a different prompt.`;
+      } else if (errStr.includes('model') || errStr.includes('resource exhausted') || errStr.includes('failed to generate')) {
+        errorMessage = `There was an issue with the image generation model or resources for prompt "${input.prompt}". Please try again later or with a different prompt.`;
+      } else if (error.message) {
+        errorMessage = `Error generating image for "${input.prompt}": ${error.message}`;
       }
       return { accompanyingText: errorMessage };
     }
   }
 );
 
-// Wrapper function to match the naming convention if generateImageGenkitFlow is internal
 async function generateImageFlow(input: GenerateImageInput): Promise<GenerateImageOutput> {
     return generateImageGenkitFlow(input);
 }
+
