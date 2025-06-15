@@ -50,30 +50,33 @@ const generateImageGenkitFlow = ai.defineFlow(
         },
       });
 
-      if (media?.url) {
+      if (media?.url) { // Image successfully generated
         let finalAccompanyingText = text || `Successfully generated image for: "${input.prompt}"`;
-        // If the model's text is short or just a confirmation, add a tip for refinement.
-        // This helps guide users even on successful generations if the output isn't perfect.
-        if (!text || text.length < 70 || text.toLowerCase().startsWith("successfully generated") || text.toLowerCase().startsWith("here is the image") || text.toLowerCase().startsWith("here's an image")) {
-          finalAccompanyingText += `\n\n💡 Tip: If this isn't quite what you wanted (e.g., for styles like 'Ghibli art'), try refining your prompt. Be more descriptive about specific visual elements, characters, mood, color palettes, or even mention key artists or works that inspire the style.`;
-        }
+        // Consistently add the refinement tip
+        finalAccompanyingText += `\n\n💡 Tip: If this isn't quite what you wanted (e.g., for styles like 'Ghibli art'), try refining your prompt. Be more descriptive about specific visual elements, characters, mood, color palettes, or even mention key artists or works that inspire the style.`;
         return { 
           imageDataUri: media.url, 
           accompanyingText: finalAccompanyingText
         };
-      } else {
-        // Image was not generated, media.url is null.
+      } else { // Image NOT generated
         console.warn(`[generateImageFlow] Image URL was null for prompt: "${input.prompt}". Model's raw text response (if any): "${text}"`);
         let userFacingMessage = `Sorry, I couldn't generate an image for the prompt: "${input.prompt}".`;
         
-        if (text && (text.toLowerCase().includes("safety") || text.toLowerCase().includes("policy") || text.toLowerCase().includes("unable to create") || text.toLowerCase().includes("cannot generate"))) {
+        const modelTextLower = text?.toLowerCase() || "";
+        if (modelTextLower.includes("safety") || modelTextLower.includes("policy") || modelTextLower.includes("unable to create an image") || modelTextLower.includes("cannot generate an image")) {
             userFacingMessage += " This may be due to content policies or safety filters. Please try a different prompt.";
-        } else {
-            userFacingMessage += " To improve results, try being more descriptive. For example, include details about the subject, style (e.g., 'photorealistic', 'Studio Ghibli art', 'watercolor'), colors, lighting, composition, and specific artists or inspirations if relevant.";
+        } else if (text) { // Model provided some text but no image
+            userFacingMessage += " The model described an image but didn't produce one. This can happen with complex or ambiguous requests.";
+            // Truncate model's text to avoid overly long messages
+            const textSnippet = text.length > 200 ? text.substring(0, 200) + "..." : text;
+            userFacingMessage += `\n\nModel's attempt/description: "${textSnippet}"`;
+            userFacingMessage += "\n\nTo improve results, try being more descriptive or rephrasing. For example, detail the subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, lighting, composition, and specific artists or inspirations if relevant.";
+        } else { // No image, no text from model
+            userFacingMessage += " To improve results, try being more descriptive. For example, include details about the subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, lighting, composition, and specific artists or inspirations if relevant.";
         }
         return { accompanyingText: userFacingMessage };
       }
-    } catch (error: any) {
+    } catch (error: any) { // Catch block for network errors or other unexpected issues
       console.error(`[generateImageFlow] Error during image generation for prompt "${input.prompt}":`, error);
       let errorMessage = `An unexpected error occurred while trying to generate an image for: "${input.prompt}".`;
       
@@ -81,10 +84,11 @@ const generateImageGenkitFlow = ai.defineFlow(
       if (errStr.includes('safety') || errStr.includes('policy')) {
         errorMessage = `The image for "${input.prompt}" could not be generated due to content policies or safety filters. Please try a different prompt.`;
       } else if (errStr.includes('model') || errStr.includes('resource exhausted') || errStr.includes('failed to generate')) {
-        errorMessage = `There was an issue with the image generation model or resources for prompt "${input.prompt}". Please try again later or with a different, more specific prompt. Adding more detail about subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, and composition can sometimes help.`;
+        errorMessage = `There was an issue with the image generation model or resources for prompt "${input.prompt}". Please try again later or with a different, more specific prompt.`;
       } else if (error.message) {
-        errorMessage = `Error generating image for "${input.prompt}": ${error.message}. If the issue persists, try making your prompt more specific (e.g., detail the style, subject, colors, mood) or rephrasing it.`;
+        errorMessage = `Error generating image for "${input.prompt}": ${error.message}.`;
       }
+      errorMessage += " If the issue persists, try making your prompt more specific (e.g., detail the style, subject, colors, mood) or rephrasing it.";
       return { accompanyingText: errorMessage };
     }
   }
