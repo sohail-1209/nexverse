@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -12,7 +13,8 @@ export default {
       fontFamily: {
         body: ['var(--font-inter)', 'sans-serif'],
         headline: ['var(--font-poppins)', 'sans-serif'],
-        michroma: ['var(--font-michroma)', 'sans-serif'], // Added Michroma
+        michroma: ['var(--font-michroma)', 'sans-serif'],
+        audiowide: ['var(--font-audiowide)', 'sans-serif'], // Added Audiowide
         code: ['monospace'],
       },
       colors: {

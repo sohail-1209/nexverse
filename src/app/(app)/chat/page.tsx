@@ -49,7 +49,7 @@ interface AttachedPdf {
 const LOCAL_STORAGE_CHAT_KEY = 'nexverseChatMessages';
 const initialGreetingMessage: Message = { 
   id: 'ai-greeting', 
-  text: "Hello! I'm your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, send an image, or use voice input for a comprehensive interaction. I can also research online for you!", 
+  text: "Hello! I'm NEXI ✨, your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, send an image, or use voice input for a comprehensive interaction. I can also research online for you!", 
   sender: 'ai', 
   timestamp: new Date() 
 };
@@ -165,7 +165,7 @@ export default function ChatPage() {
         speechRecognitionRef.current.stop();
       }
     };
-  }, [isListening]); // isListening dependency for speech recognition part
+  }, [isListening]); 
 
   // Effect to attach stream to video element when conditions are met
   useEffect(() => {
@@ -181,12 +181,8 @@ export default function ChatPage() {
           });
         });
       }
-    } else if (videoRef.current && videoRef.current.srcObject && (!showCameraView || !isCapturing)) {
-      // If camera view is closed or not capturing, ensure srcObject is cleared
-      // Tracks are stopped by the main cleanup effect or when toggling camera view off
-      // videoRef.current.srcObject = null; // Can be aggressive, rely on track stopping for now
     }
-  }, [showCameraView, hasCameraPermission, isCapturing]); // streamRef.current is a ref, its content change doesn't trigger effect directly.
+  }, [showCameraView, hasCameraPermission, isCapturing]);
 
 
   useEffect(() => {
@@ -295,10 +291,9 @@ export default function ChatPage() {
     }
 
     const processStreamAndSetPermission = (stream: MediaStream) => {
-        streamRef.current = stream; // Set the stream to the ref
-        setHasCameraPermission(true); // Indicate permission is granted
+        streamRef.current = stream; 
+        setHasCameraPermission(true); 
 
-        // Log and toast about facingMode (from previous step)
         const videoTracks = stream.getVideoTracks();
         if (videoTracks.length > 0) {
             const track = videoTracks[0];
@@ -314,7 +309,7 @@ export default function ChatPage() {
             }
             toast({ title: 'Camera Active', description: facingModeToastMessage });
         }
-        return true; // Indicate success
+        return true; 
     };
 
     try {
@@ -361,17 +356,16 @@ export default function ChatPage() {
         streamRef.current = null;
       }
       if (videoRef.current) videoRef.current.srcObject = null;
-      setHasCameraPermission(null); // Reset permission status indication
+      setHasCameraPermission(null); 
     } else { 
       setAttachedPdf(null); 
-      const permissionGranted = await requestCameraPermission(); // This sets streamRef.current and hasCameraPermission
+      const permissionGranted = await requestCameraPermission(); 
       if (permissionGranted) {
         setShowCameraView(true); 
         setIsCapturing(true); 
         setCapturedImage(null);
-        // The useEffect will now handle attaching stream to videoRef
       } else {
-        setShowCameraView(false); // Ensure it's off if permission failed
+        setShowCameraView(false); 
         setIsCapturing(false);
       }
     }
@@ -407,10 +401,7 @@ export default function ChatPage() {
   
   const handleRemoveCapturedImage = () => {
     setCapturedImage(null);
-    // If we want to allow re-opening camera directly after removing image,
-    // we might need to call handleToggleCameraView() or similar logic to re-initiate camera.
-    // For now, removing image just clears it. User can click camera button again.
-    setShowCameraView(false); // Or keep it true if we want to allow immediate re-capture
+    setShowCameraView(false); 
     setIsCapturing(false);
   };
 
@@ -529,7 +520,6 @@ export default function ChatPage() {
         setShowCameraView(false); 
         setIsCapturing(false);
       }
-      // setAttachedPdf(null); // Keep PDF unless explicitly cleared by user
     }
   };
 
@@ -563,7 +553,7 @@ export default function ChatPage() {
             <div className="flex items-center gap-3">
               <MessageSquareIcon className="h-8 w-8 text-primary" />
               <div>
-                <CardTitle className="font-headline text-2xl">AI Chat Assistant</CardTitle>
+                <CardTitle className="font-audiowide text-2xl">NEXI ✨</CardTitle>
                 <CardDescription>Ask questions, get summaries, or seek help. Attach PDFs, capture images, or use voice input.</CardDescription>
               </div>
             </div>
@@ -691,7 +681,6 @@ export default function ChatPage() {
             </CardFooter>
         )}
         
-        {/* Camera Preview and Capture UI */}
         {showCameraView && hasCameraPermission === true && isCapturing && (
             <CardFooter className="border-t p-4 flex-col gap-2">
                 <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
@@ -704,7 +693,6 @@ export default function ChatPage() {
             </CardFooter>
         )}
 
-        {/* Main Input Area - shown when not actively capturing with camera */}
         {!isCapturing && ( 
             <CardFooter className="border-t pt-4 pb-4 flex-col items-start gap-2">
             {attachedPdf && !showCameraView && ( 
@@ -719,7 +707,7 @@ export default function ChatPage() {
                 </Button>
                 </div>
             )}
-            {capturedImage && !isCapturing && ( // Show preview if image captured, not currently in live capture mode
+            {capturedImage && !isCapturing && ( 
                 <div className="w-full p-2 bg-muted rounded-md text-sm">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 text-muted-foreground">
@@ -734,10 +722,8 @@ export default function ChatPage() {
                 </div>
             )}
 
-            {/* Input form, shown if not in live camera view OR if image is captured and ready to send */}
             {(!showCameraView || (showCameraView && capturedImage && !isCapturing)) && ( 
                 <form onSubmit={handleSendMessage} className="flex w-full items-center gap-3">
-                    {/* Attachments and Mic only if not showing camera or if an image is already captured */}
                     {!showCameraView && (
                       <>
                         <Button
@@ -805,4 +791,3 @@ export default function ChatPage() {
     </div>
   );
 }
-
