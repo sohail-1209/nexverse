@@ -1,9 +1,9 @@
 
 'use server';
 /**
- * @fileOverview A Genkit flow for generating images based on a text prompt.
+ * @fileOverview A Genkit flow for generating images based on a text prompt, optionally with an input image for style transfer or editing.
  *
- * - generateImage - A function that takes a text prompt and returns an image data URI.
+ * - generateImage - A function that takes a text prompt, and optionally an input image data URI, and returns an image data URI.
  * - GenerateImageInput - The input type for the generateImage function.
  * - GenerateImageOutput - The return type for the generateImage function.
  */
@@ -12,7 +12,13 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateImageInputSchema = z.object({
-  prompt: z.string().describe('The text prompt to generate an image from.'),
+  prompt: z.string().describe('The text prompt to generate an image from, or instructions for modifying an input image.'),
+  inputImageDataUri: z
+    .string()
+    .optional()
+    .describe(
+      "Optional input image as a data URI for style transfer or editing. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+    ),
 });
 export type GenerateImageInput = z.infer<typeof GenerateImageInputSchema>;
 
@@ -23,7 +29,7 @@ const GenerateImageOutputSchema = z.object({
 export type GenerateImageOutput = z.infer<typeof GenerateImageOutputSchema>;
 
 export async function generateImage(input: GenerateImageInput): Promise<GenerateImageOutput> {
-  return generateImageFlow(input);
+  return generateImageGenkitFlow(input);
 }
 
 const highlyPermissiveSafetySettings = [
@@ -41,9 +47,19 @@ const generateImageGenkitFlow = ai.defineFlow(
   },
   async (input) => {
     try {
+      let modelPrompt: string | ({ media: { url: string; }; } | { text: string; })[];
+      if (input.inputImageDataUri) {
+        modelPrompt = [
+          { media: { url: input.inputImageDataUri } },
+          { text: input.prompt },
+        ];
+      } else {
+        modelPrompt = input.prompt;
+      }
+      
       const {media, text} = await ai.generate({
         model: 'googleai/gemini-2.0-flash-exp', 
-        prompt: input.prompt,
+        prompt: modelPrompt,
         config: {
           responseModalities: ['TEXT', 'IMAGE'], 
           safetySettings: highlyPermissiveSafetySettings,
@@ -52,27 +68,32 @@ const generateImageGenkitFlow = ai.defineFlow(
 
       if (media?.url) { // Image successfully generated
         let finalAccompanyingText = text || `Successfully generated image for: "${input.prompt}"`;
-        // Consistently add the refinement tip
-        finalAccompanyingText += `\n\n💡 Tip: If this isn't quite what you wanted (e.g., for styles like 'Ghibli art'), try refining your prompt. Be more descriptive about specific visual elements, characters, mood, color palettes, or even mention key artists or works that inspire the style.`;
+        // Consistently add the refinement tip, especially if input image was used
+        const tipPrefix = input.inputImageDataUri ? "If this modification isn't quite right" : "If this isn't quite what you wanted";
+        finalAccompanyingText += `\n\n💡 Tip: ${tipPrefix} (e.g., for styles like 'Ghibli art'), try refining your prompt. Be more descriptive about specific visual elements, characters, mood, color palettes, or even mention key artists or works that inspire the style. For image modifications, clearly state the desired changes.`;
         return { 
           imageDataUri: media.url, 
           accompanyingText: finalAccompanyingText
         };
       } else { // Image NOT generated
-        console.warn(`[generateImageFlow] Image URL was null for prompt: "${input.prompt}". Model's raw text response (if any): "${text}"`);
+        const logMessage = input.inputImageDataUri 
+          ? `[generateImageFlow] Image URL was null for prompt "${input.prompt}" with input image. Model's raw text response (if any): "${text}"`
+          : `[generateImageFlow] Image URL was null for prompt: "${input.prompt}". Model's raw text response (if any): "${text}"`;
+        console.warn(logMessage);
+        
         let userFacingMessage = `Sorry, I couldn't generate an image for the prompt: "${input.prompt}".`;
         
         const modelTextLower = text?.toLowerCase() || "";
-        if (modelTextLower.includes("safety") || modelTextLower.includes("policy") || modelTextLower.includes("unable to create an image") || modelTextLower.includes("cannot generate an image")) {
-            userFacingMessage += " This may be due to content policies or safety filters. Please try a different prompt.";
-        } else if (text) { // Model provided some text but no image
-            userFacingMessage += " The model described an image but didn't produce one. This can happen with complex or ambiguous requests.";
+        if (modelTextLower.includes("safety") || modelTextLower.includes("policy") || modelTextLower.includes("unable to create an image") || modelTextLower.includes("cannot generate an image") || modelTextLower.includes("can't generate images of real people")) {
+            userFacingMessage += " This may be due to content policies or safety filters, especially for prompts involving real people or specific depictions. Please try a different prompt.";
+        } else if (text && text.trim() !== "" && !text.toLowerCase().includes("i am unable to create an image")) { // Model provided some text but no image, and it's not a generic "I can't make images"
+            userFacingMessage += " The model described an image or process but didn't produce one. This can happen with complex or ambiguous requests, or if the input image couldn't be processed as requested.";
             // Truncate model's text to avoid overly long messages
             const textSnippet = text.length > 200 ? text.substring(0, 200) + "..." : text;
             userFacingMessage += `\n\nModel's attempt/description: "${textSnippet}"`;
-            userFacingMessage += "\n\nTo improve results, try being more descriptive or rephrasing. For example, detail the subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, lighting, composition, and specific artists or inspirations if relevant.";
-        } else { // No image, no text from model
-            userFacingMessage += " To improve results, try being more descriptive. For example, include details about the subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, lighting, composition, and specific artists or inspirations if relevant.";
+            userFacingMessage += "\n\nTo improve results, try being more descriptive or rephrasing. For example, detail the subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, lighting, composition, and specific artists or inspirations if relevant. If modifying an image, clearly describe the desired changes.";
+        } else { // No image, no useful text from model
+            userFacingMessage += " To improve results, try being more descriptive. For example, include details about the subject, style (e.g., 'photorealistic', 'Studio Ghibli art'), colors, lighting, composition, and specific artists or inspirations if relevant. If you provided an input image, ensure it's clear and the instructions are feasible.";
         }
         return { accompanyingText: userFacingMessage };
       }
@@ -88,7 +109,7 @@ const generateImageGenkitFlow = ai.defineFlow(
       } else if (error.message) {
         errorMessage = `Error generating image for "${input.prompt}": ${error.message}.`;
       }
-      errorMessage += " If the issue persists, try making your prompt more specific (e.g., detail the style, subject, colors, mood) or rephrasing it.";
+      errorMessage += " If the issue persists, try making your prompt more specific (e.g., detail the style, subject, colors, mood) or rephrasing it. If using an input image, ensure it's compatible with the requested modification.";
       return { accompanyingText: errorMessage };
     }
   }

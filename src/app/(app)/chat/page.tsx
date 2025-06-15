@@ -57,7 +57,7 @@ interface SelectedImage {
 const LOCAL_STORAGE_CHAT_KEY = 'nexverseChatMessages';
 const initialGreetingMessage: Message = { 
   id: 'ai-greeting', 
-  text: "Hello! I'm NEXI ✨, your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, upload an image from your device, capture an image with your camera, or use voice input. I can also research online for you! To generate an image, type `/imagine <your prompt>`. For specific artistic styles (e.g., 'Studio Ghibli art', 'impressionist painting'), try to be very descriptive about the subject, mood, colors, and key elements of that style.", 
+  text: "Hello! I'm NEXI ✨, your AI Assistant. How can I help you today? You can ask me questions, attach a PDF, upload an image from your device, capture an image with your camera, or use voice input. I can also research online for you! To generate an image, type `/imagine <your prompt>`. You can also upload an image and then use `/imagine <instructions>` to modify it (e.g., `/imagine apply Ghibli art style`). For specific artistic styles, try to be very descriptive.", 
   sender: 'ai', 
   timestamp: new Date() 
 };
@@ -544,8 +544,12 @@ export default function ChatPage() {
 
       if (imageCommandMatch) {
         const promptForImage = imageCommandMatch[2];
-        const imageResult: GenerateImageOutput = await generateImage({ prompt: promptForImage });
-        aiText = imageResult.accompanyingText || "Here is the image you requested:";
+        const imageGenInput: GenerateImageInput = { 
+            prompt: promptForImage,
+            inputImageDataUri: finalImageDataUri, // Pass attached image if present
+        };
+        const imageResult: GenerateImageOutput = await generateImage(imageGenInput);
+        aiText = imageResult.accompanyingText || (imageResult.imageDataUri ? "Here is the image you requested:" : "Could not generate image for that prompt.");
         aiImageUrl = imageResult.imageDataUri;
         if (!aiImageUrl && !aiText) {
             aiText = "Sorry, I couldn't generate an image or provide a response for that prompt.";
