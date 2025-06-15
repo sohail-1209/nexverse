@@ -20,6 +20,7 @@ if (typeof window !== 'undefined') {
   console.log(`[NExVERSE Firebase Client] API Key Loaded (NEXT_PUBLIC_FIREBASE_API_KEY): ${process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? 'YES' : 'NO - CRITICAL!'}`);
   console.log(`[NExVERSE Firebase Client] Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN): ${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'NOT LOADED - CRITICAL FOR AUTH!'}`);
   console.log(`[NExVERSE Firebase Client] Project ID (NEXT_PUBLIC_FIREBASE_PROJECT_ID): ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'NOT LOADED - CRITICAL!'}`);
+  // Use the env var directly now for storage bucket
   console.log(`[NExVERSE Firebase Client] Storage Bucket from ENV (NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET): ${process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'NOT LOADED - CHECK BUCKET NAME!'}`);
   console.log(`[NExVERSE Firebase Client] Messaging Sender ID (NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID): ${process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || 'NOT LOADED - NEEDED FOR FCM'}`);
   console.log(`[NExVERSE Firebase Client] App ID (NEXT_PUBLIC_FIREBASE_APP_ID): ${process.env.NEXT_PUBLIC_FIREBASE_APP_ID || 'NOT LOADED'}`);
@@ -30,7 +31,7 @@ const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, // Use the env var directly
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
@@ -47,8 +48,8 @@ if (typeof window === 'undefined') {
   console.log(`[NExVERSE Firebase Server] App ID from env: ${firebaseConfig.appId || 'MISSING'}`);
   console.log(`[NExVERSE Firebase Server] Measurement ID from env: ${firebaseConfig.measurementId || 'MISSING (optional)'}`);
 
-  if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.authDomain || !firebaseConfig.messagingSenderId) {
-    console.error('[NExVERSE Firebase Server] CRITICAL: Core Firebase config environment variables (including messagingSenderId) are missing server-side. Ensure secrets are correctly defined in Google Secret Manager, referenced in apphosting.yaml, and that the App Hosting service account has Secret Manager Secret Accessor permissions.');
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.authDomain || !firebaseConfig.messagingSenderId || !firebaseConfig.storageBucket) {
+    console.error('[NExVERSE Firebase Server] CRITICAL: Core Firebase config environment variables (including messagingSenderId and storageBucket) are missing server-side. Ensure secrets are correctly defined in Google Secret Manager, referenced in apphosting.yaml, and that the App Hosting service account has Secret Manager Secret Accessor permissions.');
   }
 }
 
@@ -120,15 +121,18 @@ export const initializeFirebaseMessaging = async (showToast: (options: { title: 
       console.log('[NExVERSE FCM] Notification permission granted by user.');
 
       // =========================================================================================
-      // IMPORTANT: REPLACE THE PLACEHOLDER BELOW WITH YOUR ACTUAL PUBLIC VAPID KEY.
-      // You can find this key in your Firebase project settings:
+      // VAPID KEY SECTION
+      // This key is used to authorize your web app to send push messages via Firebase.
+      // You get this key from:
       // Firebase Console -> Project Settings (gear icon) -> Cloud Messaging tab
       // Under "Web configuration", find "Web Push certificates" and copy the "Key pair" (it's the public key).
       // =========================================================================================
-      const VAPID_KEY_PLACEHOLDER_TEXT = "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE_GOES_HERE";
-      const VAPID_KEY = VAPID_KEY_PLACEHOLDER_TEXT; // PASTE YOUR KEY HERE, REPLACING VAPID_KEY_PLACEHOLDER_TEXT
+      const VAPID_KEY = "BB99WyUz39vmARSo961L5lkLJY9mCGakOBb8YdRQrinuSj65XBffX_rByPZyJltNBIZnHA1qJFY1CtJcwk7vKEw"; // User provided key
 
-      if (VAPID_KEY === VAPID_KEY_PLACEHOLDER_TEXT) {
+      // This is a placeholder for sanity checking, can be removed or kept for future debugging if key changes.
+      const VAPID_KEY_PLACEHOLDER_TEXT = "YOUR_PUBLIC_VAPID_KEY_FROM_FIREBASE_CONSOLE_GOES_HERE"; 
+
+      if (VAPID_KEY === VAPID_KEY_PLACEHOLDER_TEXT) { // Check if it's STILL the placeholder
         const warningMessage = "[NExVERSE FCM] CRITICAL: VAPID Key for FCM is not set in src/lib/firebase.ts. It's still the placeholder. Push notifications WILL NOT WORK. Please generate/find your VAPID key in Firebase Console (Project Settings > Cloud Messaging > Web Push certificates) and replace the placeholder string in the code with your actual public VAPID key.";
         console.warn(warningMessage);
         showToast({
@@ -224,3 +228,5 @@ export const setupForegroundMessageHandler = (showToast: (options: { title: stri
 };
 
 export { app, auth, db, analytics, storageInstance as storage, messaging, collection, addDoc, serverTimestamp, doc, setDoc, getDoc, getDocs, query, where, deleteDoc, updateDoc, ref, uploadBytes, getDownloadURL, deleteObject, orderBy, limit, startAfter, documentId, arrayUnion };
+
+    
